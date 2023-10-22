@@ -1,0 +1,27 @@
+게임 start -> 
+      player set
+              world.set_location(plyer)
+               -> player_goto(left_defend)
+               -> player_goto(right_defend)
+               -> player_goto(shooter)
+
+
+
+player 
+
+idle
+   if be_hitter      -> change_state(hitter)
+   if hitter_hit     -> change_state(runner)
+
+run
+   if catch_ball_out -> change_state(runner)
+   if arrive         -> change_state(idle)
+   if out            -> chagge_state(end)
+
+hit
+   if hit            -> world_set(hitted) -> hitter_hit
+   if ST             -> game_rule(add_st)
+
+catch
+   if hitter_hit     -> try_to_catch_ball
+   
