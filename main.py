@@ -1,4 +1,5 @@
 from pico2d import*
+import game_world
 import os
 os.chdir(os.path.dirname(__file__))
 from player import Player
@@ -6,36 +7,46 @@ from field import Field
 
 def handle_events():
     global running 
-    events=get_events
+    events=get_events()
     for event in events:
         if(event.type==SDL_KEYDOWN):
             if event.key==SDLK_ESCAPE:
                 running=False
+        else:
+            for i in range(5):
+                players[i].handle_events(event)
+            
 
-def set_game():
+def create_world():
     global running
     global field
     global players
     global game
+    players=[]
     game=[]
-    
+    running=True
+
     field=Field()
-    game.append(field)
+    game_world.add_object(field,0)
 
-    players=Player()
-    game.append(players)
+    for i in range(5):
+        players.append(Player(0))
+        game_world.add_object(players[i])
 
-def update_game():
-    for obj in game:
-        obj.update()
+def update_world():
+    game_world.update()
 
-def render_game():
-    for obj in game:
-        obj.draw()
+def render_world():
+    clear_canvas()
+    game_world.render()
+    update_canvas()
 
 open_canvas()
-set_game()
-render_game()
-update_canvas()
-delay(50)
+create_world()
+
+while(running):
+    update_world()
+    render_world()
+    handle_events()
+
 close_canvas()
