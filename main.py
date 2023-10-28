@@ -14,7 +14,7 @@ def handle_events():
                 running=False
         else:
             for i in range(5):
-                players[i].handle_events(event)
+                players[i].handle_event(event)
             
 
 def create_world():
@@ -43,7 +43,6 @@ def render_world():
 
 open_canvas()
 create_world()
-
 while(running):
     update_world()
     render_world()
