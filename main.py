@@ -13,14 +13,15 @@ def handle_events():
             if event.key==SDLK_ESCAPE:
                 running=False
         else:
-            for i in range(5):
-                players[i].handle_event(event)
-            
-
+            player.handle_event(event)
+def check_players():
+    player.handle_event(None)
+index=0            
+field_set_info=[[400,60],[600,260],[400,460],[200,260],[400,60]]
 def create_world():
     global running
     global field
-    global players
+    global player
     global game
     players=[]
     game=[]
@@ -29,9 +30,9 @@ def create_world():
     field=Field()
     game_world.add_object(field,0)
 
-    for i in range(5):
-        players.append(Player(0))
-        game_world.add_object(players[i])
+    player=Player(0)
+    players.append(player)
+    game_world.add_object(player)
 
 def update_world():
     game_world.update()
@@ -43,9 +44,15 @@ def render_world():
 
 open_canvas()
 create_world()
+player.goto((400,60))
 while(running):
     update_world()
     render_world()
     handle_events()
+    check_players()
+    if index<5 and player.x==player.destination[0] and player.y==player.destination[1]:
+        player.destination=field_set_info[index]
+        index+=1
+    delay(0.01)
 
 close_canvas()
