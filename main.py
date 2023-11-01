@@ -17,7 +17,7 @@ def handle_events():
 def check_players():
     player.handle_event(None)
 index=0            
-field_set_info=[[400,60],[600,260],[400,460],[200,260],[400,60]]
+field_set_info=[[400,30],[500,130],[400,230],[300,130],[400,30]]
 def create_world():
     global running
     global field
@@ -30,7 +30,7 @@ def create_world():
     field=Field()
     game_world.add_object(field,0)
 
-    player=Player(0)
+    player=Player()
     players.append(player)
     game_world.add_object(player)
 
@@ -44,7 +44,6 @@ def render_world():
 
 open_canvas()
 create_world()
-player.goto((400,60))
 while(running):
     update_world()
     render_world()

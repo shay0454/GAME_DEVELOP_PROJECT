@@ -1,7 +1,8 @@
-from pico2d import load_image
+from pico2d import *
 import math
 rad=math.pi/180
 from sdl2 import SDLK_DOWN, SDLK_SPACE
+from main import field_info
 
 
 def is_swing(player,e):
@@ -30,6 +31,12 @@ def is_out(player,e):
 def is_arrive(player,e):
     return player.destination==[player.x,player.y]
 
+def is_click(player,e):
+    if e[1]!=None and e[1].type==SDL_MOUSEBUTTONDOWN and player.x>=e[1].x-player.size[0]/2 and player.x<=e[1].x+player.size[0]/2 and player.y>=600-e[1].y-1-player.size[0]/2 and player.y<=600-e[1].y-1+player.size[0]/2:
+        player.destination=player.start
+        print('click')
+        return True
+    return False
 class Hit: #416 488
     @staticmethod
     def enter(player,e):
@@ -59,7 +66,7 @@ class Hit: #416 488
         player.clip_composite_draw(hitter_frame_left[player.frame]*8,488-72,hitter_size[player.frame],32,0,'',player.x-relocate_hitter_frame_left[player.frame],player.y,player.size[0]*(hitter_size[player.frame])/24,player.size[1])
         pass
 
-
+the_catch=False
 class Run:
     @staticmethod
     def enter(player,e):
@@ -69,6 +76,8 @@ class Run:
 
     @staticmethod
     def exit(player,e):
+        if field_info[player.base]==player.destination and player.team==1 and not the_catch:
+            player.destination=field_info[player.base]
         pass
     
     @staticmethod
@@ -79,7 +88,7 @@ class Run:
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw((player.frame)*16+18,320+12-player.updown*12,16,20,0,player.face,player.x,player.y,player.size[0],player.size[1])
+        player.image.clip_composite_draw((player.frame)*16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.updown*12,16,20,0,player.face,player.x,player.y,player.size[0],player.size[1])
         pass
     
     @staticmethod
@@ -138,17 +147,17 @@ class Idle:
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw(0,320+24,16,20,0,player.face,player.x,player.y,player.size[0],player.size[1])
+        player.image.clip_composite_draw(player.sprite_p[0],player.sprite_p[1]+24,16,20,0,player.face,player.x,player.y,player.size[0],player.size[1])
         pass
     
 class StateMachine:
     def __init__(self,player,num):
         self.player=player
-        self.cur_state=Idle if num==0 else Defend
+        self.cur_state=Idle if num==1 else Defend
         self.state_table={
             Idle : {be_hitter : Hit, is_not_arrive: Run},
             Hit : {is_hit: Run, is_hit:Hit},
-            Run : {is_out:Back, is_arrive:Idle},
+            Run : {is_click:Run, is_arrive:Idle},
             Defend:{is_hit:Catch, is_not_hit:Defend},
             Catch:{is_catch:Pass, is_not_catch:Catch},
             Shoot:{is_hit:Defend, is_not_hit:Shoot}
@@ -174,7 +183,7 @@ class StateMachine:
 
 class Player:
     image=None
-    def __init__(self,num):
+    def __init__(self,num=1):
         self.x,self.y=400,20                        # 기본 좌표
         self.frame=0                                # 프레임
         self.face=''                                #  'h': 왼쪽, '': 오른쪽
@@ -185,8 +194,13 @@ class Player:
         self.destination=[self.x,self.y]            # 도착지점
         self.start=self.destination                 # 시작지점
         self.angle=0                                # run 각도 (도 각도)
-        self.size=40,30                             # player draw 사이즈
+        self.size=[40,30]                           # player draw 사이즈
         self.v=1                                    # player 속도
+        self.base=0
+        if num==1:
+            self.sprite_p=[0,320]
+        else:
+            self.sprite_p=[8*24,160]
         if Player.image==None:
             Player.image=load_image('Baseball_Players.png')
 
