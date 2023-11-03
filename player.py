@@ -1,8 +1,8 @@
 from pico2d import *
+import field_control
 import math
 rad=math.pi/180
 from sdl2 import SDLK_DOWN, SDLK_SPACE
-from main import field_info
 
 
 def is_swing(player,e):
@@ -16,6 +16,7 @@ def is_hit(player,e):
 
 def is_not_arrive(player,e):
     return player.destination!=[player.x,player.y]
+
 def is_not_hit(player,e):
     return not is_hit(player,e)
 
@@ -33,7 +34,13 @@ def is_arrive(player,e):
 
 def is_click(player,e):
     if e[1]!=None and e[1].type==SDL_MOUSEBUTTONDOWN and player.x>=e[1].x-player.size[0]/2 and player.x<=e[1].x+player.size[0]/2 and player.y>=600-e[1].y-1-player.size[0]/2 and player.y<=600-e[1].y-1+player.size[0]/2:
-        player.destination=player.start
+        player.destination,player.pre_base=player.pre_base,player.destination
+        if player.base_dir==1:
+            player.base-=1
+            player.base_dir=-1
+        else:
+            player.base+=1
+            player.base_dir=1
         print('click')
         return True
     return False
@@ -76,8 +83,6 @@ class Run:
 
     @staticmethod
     def exit(player,e):
-        if field_info[player.base]==player.destination and player.team==1 and not the_catch:
-            player.destination=field_info[player.base]
         pass
     
     @staticmethod
@@ -193,10 +198,12 @@ class Player:
         self.state_machine.start()                  # 상태머신 시작
         self.destination=[self.x,self.y]            # 도착지점
         self.start=self.destination                 # 시작지점
+        self.pre_base=self.start
         self.angle=0                                # run 각도 (도 각도)
         self.size=[40,30]                           # player draw 사이즈
         self.v=1                                    # player 속도
         self.base=0
+        self.base_dir=0
         if num==1:
             self.sprite_p=[0,320]
         else:

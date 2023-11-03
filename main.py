@@ -14,6 +14,7 @@ def handle_events():
                 running=False
         else:
             player.handle_event(event)
+
 def check_players():
     player.handle_event(None)
 index=0            
@@ -44,14 +45,17 @@ def render_world():
 
 open_canvas()
 create_world()
+player.goto([400,30])
 while(running):
     update_world()
     render_world()
     handle_events()
     check_players()
-    if index<5 and player.x==player.destination[0] and player.y==player.destination[1]:
-        player.destination=field_set_info[index]
-        index+=1
+    if player.base<5 and player.destination==[player.x,player.y]:
+        player.pre_base=player.destination
+        player.destination=field_set_info[player.base]
+        player.base+=1
+        player.base_dir=1
     delay(0.01)
 
 close_canvas()
