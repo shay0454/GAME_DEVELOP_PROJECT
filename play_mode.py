@@ -1,11 +1,10 @@
 from pico2d import*
 import game_world
-
 from player import Player
-from field import Field
+from field import Field,Field_control
 
 def handle_events():
-    global running 
+    global running,player
     events=get_events()
     for event in events:
         if(event.type==SDL_KEYDOWN):
@@ -16,6 +15,7 @@ def handle_events():
 
 def check_players():
     player.handle_event(None)
+    
 index=0            
 field_set_info=[[400,30],[500,130],[400,230],[300,130],[400,30]]
 def init():
@@ -23,16 +23,16 @@ def init():
     global field
     global player
     global game
-    players=[]
+    global control
     game=[]
     running=True
 
     field=Field()
     game_world.add_object(field,0)
+    
+    control=Field_control()
+    player=Player(1)
 
-    player=Player()
-    players.append(player)
-    game_world.add_object(player,2)
 
 
 def finish():
@@ -40,7 +40,9 @@ def finish():
 
 
 def update():
+    control.update()
     game_world.update()
+    check_players()
 
 
 def draw():
@@ -50,13 +52,10 @@ def draw():
 
 open_canvas()
 init()
-player.goto([400,30])
 while running:
     handle_events()
     update()
     draw()
-
-    check_players()
     if player.base<5 and player.destination==[player.x,player.y]:
         player.pre_base=player.destination
         player.destination=field_set_info[player.base]
