@@ -12,7 +12,35 @@ class Field: #1024 1024
     
     def draw(self):
         self.image.draw(400,450)
+class Ready:
+    pass
+class Start:
+    pass
+class Hit:
+    pass
+class Catch:
+    pass
+class End:
+    pass
+class Field_statement:
+    def __init__(self,f_control):
+        self.f_control=f_control
+        self.cur_state=Ready
+        self.state_table={
+            Ready:{is_space:Start},
+            Start:{is_hit:Hit,is_not_hit:Start,is_end:End},
+            Catch:{is_out:Catch,is_catch:Catch},
+            End:{}
+        }
 
+    def start(self):
+        self.cur_state.enter(self.f_control,('NONE',0))
+
+    def update(self):
+        self.cur_state.do(self.f_controlr)
+
+    def draw(self):
+        self.cur_state.draw(self.f_control)
 
 class Field_control:
 
