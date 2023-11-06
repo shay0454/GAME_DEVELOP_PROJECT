@@ -1,5 +1,4 @@
 from pico2d import *
-import field_control
 import math
 rad=math.pi/180
 from sdl2 import SDLK_DOWN, SDLK_SPACE
@@ -127,7 +126,20 @@ class Run:
             player.y+=player.v*math.sin(player.angle*rad)
             
 class Defend:
-    pass
+    @staticmethod
+    def enter(player,e):
+        player.frame=0
+
+    def exit(player,e):
+        pass
+
+    def do(player):
+        pass
+
+    def draw(player):
+        player.image.clip_composite_draw(16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.updown*12,16,20,0,player.face,player.x,player.y,player.size[0],player.size[1])
+        pass
+
 class Back:
     pass
 class Catch:
