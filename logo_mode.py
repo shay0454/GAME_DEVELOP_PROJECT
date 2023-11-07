@@ -1,4 +1,5 @@
 import game_framework
+import title_mode
 from pico2d import *
 
 def init():
@@ -18,7 +19,7 @@ def update():
     global logo_start_time
     if get_time()-logo_start_time>=2.0:
         running =False
-        game_framework.quit()
+        game_framework.change_mode(title_mode)
 
 def draw():
     clear_canvas()
