@@ -49,18 +49,3 @@ def draw():
     clear_canvas()
     game_world.render()
     update_canvas()
-
-open_canvas()
-init()
-while running:
-    handle_events()
-    update()
-    draw()
-    if player.base<5 and player.destination==[player.x,player.y]:
-        player.pre_base=player.destination
-        player.destination=field_set_info[player.base]
-        player.base+=1
-        player.base_dir=1
-    delay(0.01)
-finish()
-close_canvas()
