@@ -41,7 +41,7 @@ def run(start_mode):
         stack[-1].handle_events()
         stack[-1].update()
         stack[-1].draw()
-        frame_time=time.time-cur_time
+        frame_time=time.time()-cur_time
         frame_rate=1/frame_time
         cur_time+=frame_time
 
