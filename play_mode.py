@@ -1,6 +1,7 @@
 from pico2d import*
 import game_world
-from field import Field,Field_control
+from field import Field
+from field_control import Field_control
 
 def handle_events():
     global running,control
