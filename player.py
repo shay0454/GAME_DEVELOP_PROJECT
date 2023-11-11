@@ -170,12 +170,11 @@ class Idle:
 class StateMachine:
     def __init__(self,player,num):
         self.player=player
-        self.cur_state=Idle if num==1 else Defend
+        self.cur_state=Idle
         self.state_table={
             Idle : {be_hitter : Hit, is_not_arrive: Run},
             Hit : {is_hit: Run, is_hit:Hit},
             Run : {is_click:Run, is_arrive:Idle},
-            Defend:{is_hit:Catch, is_not_hit:Defend},
             Catch:{is_catch:Pass, is_not_catch:Catch},
             Shoot:{is_hit:Defend, is_not_hit:Shoot}
         }
@@ -219,7 +218,7 @@ class Player:
         if num==1:
             self.sprite_p=[0,320]
         else:
-            self.sprite_p=[8*24,160]
+            self.sprite_p=[208,160]
         if Player.image==None:
             Player.image=load_image('Baseball_Players.png')
 
@@ -232,7 +231,9 @@ class Player:
     def draw(self):
         self.state_machine.draw()
 
-    def goto(self,destination):
+    def goto(self,destination): #지점 이동용 명령
         self.destination=destination    
 
+    def stop(self): # 익수들이 공을 잡은 후에 쓸 명령
+        self.destination=[self.x,self.y]
 

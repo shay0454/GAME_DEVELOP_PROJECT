@@ -27,6 +27,7 @@ def update():
 def draw():
     clear_canvas()
     image.draw(400,300)
-    temp.draw(275,450,'BASEBALL\n  GAME  ')
+    temp.draw(275,450,'BASEBALL')
+    temp.draw(275,400,'  GAME  ')
     button.draw(400,200,400,300)
     update_canvas()

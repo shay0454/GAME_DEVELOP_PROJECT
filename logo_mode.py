@@ -24,7 +24,7 @@ def update():
 def draw():
     clear_canvas()
     image[0].draw(400,300)
-    image[1].clip_composite_draw(0,0,64,64,int(get_time()*15),'',400,300)
+    image[1].clip_composite_draw(0,0,64,64,get_time()*15,'',400,300)
     update_canvas()
 
 def handle_events():
