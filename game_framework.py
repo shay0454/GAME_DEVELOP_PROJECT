@@ -1,4 +1,5 @@
 import time
+import pico2d
 stack=[]
 def change_mode(mode):
     global stack
@@ -44,6 +45,7 @@ def run(start_mode):
         frame_time=time.time()-cur_time
         frame_rate=1/frame_time
         cur_time+=frame_time
+        pico2d.delay(0.01)
 
     # running == False 일 시
     while len(stack)>0:
