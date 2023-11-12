@@ -18,6 +18,7 @@ def is_hit(control):
 
 def is_not_hit(control):
     pass
+
 class Ready:
     @staticmethod
     def enter(control):
@@ -39,7 +40,7 @@ class Ready:
 
     def basemen_location_init(control):                                                          # basemen 위치 초기화용
             for i in range(len(control.basemen)):
-                control.basemen[i].goto(control.basemen_point[control.p[i]])
+                control.basemen[i].goto(control.base_point[i])
 
 class Start:
     @staticmethod
@@ -53,6 +54,7 @@ class Start:
     @staticmethod
     def do(control):
         pass
+
 class Hit:
     
     @staticmethod
@@ -69,8 +71,10 @@ class Hit:
 
 class Catch:
     pass
+
 class End:
     pass
+
 class Field_statement:
 
     def __init__(self,f_control):
@@ -116,12 +120,15 @@ class Field_control:
         self.fielders=[]                                                                            # fielders
         self.basemen=[]                                                                             # basemen
         self.f_objects=[self.players,self.fielders,self.basemen]                                    # f_objects
-        Field_control.fielder_init(self)       
-        Ready.fielders_location_init(self)                                   
+        self.fielders_init()       
+        Ready.fielders_location_init(self)         
+        self.basemen_init()
+        Ready.basemen_location_init(self)                          
 
     def update(self):
         self.state_machine.update()
         pass
+    
     def get_next_base(self,player):                                                         # 변형 예정
         if(player.destination==self.field_set_info[player.base]):
             player.base+=1
@@ -139,9 +146,16 @@ class Field_control:
         for i in range(0,len(self.fielders)):
             self.fielders[i].handle_event(event)
 
-    def fielder_init(self):                                                                 # fielder 객체들 초기화용
+    def fielders_init(self):                                                                 # fielder 객체들 초기화용
         global fielders
         for i in range(4):
             player=Player(2)
             self.fielders.append(player)
+            game_world.add_object(player,2)
+
+    def basemen_init(self):                                                                 # fielder 객체들 초기화용
+        global basemen
+        for i in range(4):
+            player=Player(2)
+            self.basemen.append(player)
             game_world.add_object(player,2)

@@ -58,7 +58,6 @@ class Hit: #416 488
     def do(player):
         if(is_swing[1]):
             player.is_swing=True
-        
         if(player.is_swing):
             player.frame=(player.frame+1)%6
             if player.frame==0:
@@ -72,7 +71,6 @@ class Hit: #416 488
         player.clip_composite_draw(hitter_frame_left[player.frame]*8,488-72,hitter_size[player.frame],32,0,'',player.x-relocate_hitter_frame_left[player.frame],player.y,player.size[0]*(hitter_size[player.frame])/24,player.size[1])
         pass
 
-the_catch=False
 class Run:
     @staticmethod
     def enter(player,e):
@@ -130,24 +128,31 @@ class Defend:
     def enter(player,e):
         player.frame=0
 
+    @staticmethod
     def exit(player,e):
         pass
 
+    @staticmethod
     def do(player):
         pass
 
+    @staticmethod
     def draw(player):
         player.image.clip_composite_draw(16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.updown*12,16,20,0,player.face,player.x,player.y,player.size[0],player.size[1])
         pass
 
 class Back:
     pass
+
 class Catch:
     pass
+
 class Pass:
     pass
+
 class Shoot:
     pass
+
 class Idle:
     @staticmethod
     def enter(player,e):
@@ -198,7 +203,9 @@ class StateMachine:
         return False
 
 class Player:
-    image=None
+
+    image=None                                      # sprite
+
     def __init__(self,num=1):
         self.x,self.y=400,20                        # 기본 좌표
         self.frame=0                                # 프레임

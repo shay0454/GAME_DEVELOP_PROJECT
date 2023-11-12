@@ -10,14 +10,10 @@ def handle_events():
         if(event.type==SDL_KEYDOWN):
             if event.key==SDLK_ESCAPE:
                 running=False
-        else:
-            control.handle_events(event)
 
     control.handle_events(None)
 
-    
-index=0            
-field_set_info=[[400,30],[500,130],[400,230],[300,130],[400,30]]
+
 def init():
     global running
     global field
@@ -28,7 +24,6 @@ def init():
     game_world.add_object(field,0)
     
     control=Field_control()
-
 
 
 def finish():
