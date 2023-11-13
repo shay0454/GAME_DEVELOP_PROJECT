@@ -2,7 +2,7 @@ from pico2d import *
 import math
 rad=math.pi/180
 from sdl2 import SDLK_DOWN, SDLK_SPACE
-
+import game_framework
 
 def is_swing(player,e):
     return e[0]=='INPUT'and e[1].type==SDLK_DOWN and e[1].key==SDLK_SPACE
@@ -43,6 +43,16 @@ def is_click(player,e):
         print('click')
         return True
     return False
+
+PIXEL_PER_METER=5.9
+RUN_SPEED_KMPH=24
+RUN_SPEED_MPM=(RUN_SPEED_KMPH*1000/60)
+RUN_SPEED_MPS=(RUN_SPEED_MPM/60)
+RUN_SPEED_PPS=(RUN_SPEED_MPS*PIXEL_PER_METER)
+
+TIME_PER_ACTION=1
+ACTION_PER_TIME=1/TIME_PER_ACTION
+FRAME_PER_ACTION=100
 class Hit: #416 488
     @staticmethod
     def enter(player,e):
@@ -59,7 +69,7 @@ class Hit: #416 488
         if(is_swing[1]):
             player.is_swing=True
         if(player.is_swing):
-            player.frame=(player.frame+1)%6
+            player.frame=(player.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)%6
             if player.frame==0:
                 player.is_swing=False
 
@@ -68,13 +78,12 @@ class Hit: #416 488
         hitter_frame_left=[0,2,5,8,12,15] #draw용 좌측 벽
         hitter_size=[16,24,24,24,24,24] #hitter 이미지 사이즈
         relocate_hitter_frame_left=[24,24,0,0,0,24] #다시 맞추기 용
-        player.clip_composite_draw(hitter_frame_left[player.frame]*8,488-72,hitter_size[player.frame],32,0,'',player.x-relocate_hitter_frame_left[player.frame],player.y,player.size[0]*(hitter_size[player.frame])/24,player.size[1])
+        player.clip_composite_draw(hitter_frame_left[int(player.frame)]*8,488-72,hitter_size[int(player.frame)],32,0,'',player.x-relocate_hitter_frame_left[player.frame],player.y,player.size[0]*(hitter_size[player.frame])/24,player.size[1])
         pass
 
 class Run:
     @staticmethod
     def enter(player,e):
-        player.start=[player.x,player.y]
         Run.set_run_angle(player)
         Run.set_sprite_showed(player)
 
@@ -84,25 +93,18 @@ class Run:
     
     @staticmethod
     def do(player):
-        player.frame=(player.frame+1)%3
+        player.frame=(player.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)%3
         Run.set_next_position(player)
         pass
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw((player.frame)*16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.updown*12,16,20,0,player.face,player.x,player.y,player.size[0],player.size[1])
+        player.image.clip_composite_draw(int(player.frame)*16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.updown*12,16,20,0,player.face,player.x,player.y,player.size[0],player.size[1])
         pass
     
     @staticmethod
     def set_run_angle(player):
-        if(player.destination[0]!=player.x):
-            player.angle=math.atan2((player.destination[1]-player.y),(player.destination[0]-player.x))/rad
-        else :
-            if(player.destination[1]>player.y): 
-                player.angle=90
-            else:
-                player.angle=-90
-        player.angle%=360
+        player.angle=(math.atan2((player.destination[1]-player.y),(player.destination[0]-player.x))/rad)%360
 
     @staticmethod
     def set_sprite_showed(player):
@@ -117,42 +119,12 @@ class Run:
 
     @staticmethod
     def set_next_position(player):
-        if((player.destination[0]-player.x)**2+(player.destination[1]-player.y)**2<=player.v**2):
+        if((player.destination[0]-player.x)**2+(player.destination[1]-player.y)**2<=(game_framework.frame_time*RUN_SPEED_PPS)**2):
             player.x,player.y=player.destination[0],player.destination[1]
         else:
-            player.x+=player.v*math.cos(player.angle*rad)
-            player.y+=player.v*math.sin(player.angle*rad)
+            player.x+=(game_framework.frame_time*RUN_SPEED_PPS)*math.cos(player.angle*rad)
+            player.y+=(game_framework.frame_time*RUN_SPEED_PPS)*math.sin(player.angle*rad)
             
-class Defend:
-    @staticmethod
-    def enter(player,e):
-        player.frame=0
-
-    @staticmethod
-    def exit(player,e):
-        pass
-
-    @staticmethod
-    def do(player):
-        pass
-
-    @staticmethod
-    def draw(player):
-        player.image.clip_composite_draw(16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.updown*12,16,20,0,player.face,player.x,player.y,player.size[0],player.size[1])
-        pass
-
-class Back:
-    pass
-
-class Catch:
-    pass
-
-class Pass:
-    pass
-
-class Shoot:
-    pass
-
 class Idle:
     @staticmethod
     def enter(player,e):
@@ -177,11 +149,8 @@ class StateMachine:
         self.player=player
         self.cur_state=Idle
         self.state_table={
-            Idle : {be_hitter : Hit, is_not_arrive: Run},
-            Hit : {is_hit: Run, is_hit:Hit},
-            Run : {is_click:Run, is_arrive:Idle},
-            Catch:{is_catch:Pass, is_not_catch:Catch},
-            Shoot:{is_hit:Defend, is_not_hit:Shoot}
+            Idle : {is_not_arrive: Run},
+            Run : {is_click:Run, is_arrive:Idle}
         }
 
     def start(self):
@@ -215,11 +184,7 @@ class Player:
         self.state_machine=StateMachine(self,num)   # 상태머신 지정
         self.state_machine.start()                  # 상태머신 시작
         self.destination=[self.x,self.y]            # 도착지점
-        self.start=self.destination                 # 시작지점
-        self.pre_base=self.start
-        self.angle=0                                # run 각도 (도 각도)
-        self.size=[40,30]                           # player draw 사이즈
-        self.v=1                                    # player 속도
+        self.size=[32,24]                           # player draw 사이즈
         self.base=0
         self.base_dir=0
         if num==1:
