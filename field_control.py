@@ -1,7 +1,7 @@
 import pico2d
 import game_world
 from player import *
-
+from picker import *
 def is_all_arrive(control):                                             # 모든 player가 도착했는지 확인용
     for i in range(len(control.f_objects[control.p['fielders']])):
         if not is_arrive(control.f_objects[control.p['fielders']][i], None): return False
@@ -33,9 +33,11 @@ class Ready:
     def do(control):
         print(1)
         pass
-
+    
+    def picker_location_init(control):
+        control.fielders[0].goto(control.fielder_point[control.fielder_info[0]])
     def fielders_location_init(control):                                                        # fielders 위치 초기화용
-            for i in range(len(control.fielders)):
+            for i in range(1,len(control.fielders)):
                 control.fielders[i].goto(control.fielder_point[control.fielder_info[i]])
 
     def basemen_location_init(control):                                                          # basemen 위치 초기화용
@@ -45,7 +47,8 @@ class Ready:
 class Start:
     @staticmethod
     def enter(control):
-        pass
+        print('start')
+        control.fielders[0].state_machine.change_state(Shoot)
 
     @staticmethod
     def exit(control):
@@ -112,17 +115,19 @@ class Field_control:
         self.field =[None,None,None,None,None]                                                      # 홈, 1루, 2루, 3루, 홈
         self.strike,self.out=0,0                                                                    # strike, out
         self.catched=False                                                                          # ball_catched의 확인용 (제거예정)
-        self.base_point=[[400,30],[500,130],[400,230],[300,130],[400,30]]                           # base_point
-        self.fielder_point={'shoot':[400,200],'left':[350,240],'mid':[400,330],'right':[450,240]}   # fielders의 위치 dict
+        self.base_point=[[400,90],[560+4,240],[400,300+12],[240-4,240],[400,70]]                           # base_point
+        self.fielder_point={'shoot':[400,130],'left':[250,240],'mid':[400,330],'right':[550,240]}   # fielders의 위치 dict
         self.fielder_info={0:'shoot',1:'left',2:'mid',3:'right'}                                    # 제거 예정
         self.p={'players':0,'fielders':1,'basemen':2}                                               # 매칭용
         self.players=[]                                                                             # 변형 예정
         self.fielders=[]                                                                            # fielders
         self.basemen=[]                                                                             # basemen
         self.f_objects=[self.players,self.fielders,self.basemen]                                    # f_objects
+        self.picker_init()
+        Ready.picker_location_init(self)
         self.fielders_init()       
-        Ready.fielders_location_init(self)         
-        self.basemen_init()
+        #Ready.fielders_location_init(self)         
+        #self.basemen_init()
         Ready.basemen_location_init(self)                          
 
     def update(self):
@@ -148,7 +153,7 @@ class Field_control:
 
     def fielders_init(self):                                                                 # fielder 객체들 초기화용
         global fielders
-        for i in range(4):
+        for i in range(1,4):
             player=Player(2)
             self.fielders.append(player)
             game_world.add_object(player,2)
@@ -159,3 +164,9 @@ class Field_control:
             player=Player(2)
             self.basemen.append(player)
             game_world.add_object(player,2)
+
+    def picker_init(self):
+        global fielders
+        picker=Picker()
+        self.fielders.append(picker)
+        game_world.add_object(picker,2)
