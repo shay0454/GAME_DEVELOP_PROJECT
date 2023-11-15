@@ -1,6 +1,6 @@
 from pico2d import *
 import math
-rad=math.pi/180
+degree=math.pi/180
 from sdl2 import SDLK_DOWN, SDLK_SPACE
 import game_framework
 
@@ -41,9 +41,7 @@ class Run:
         pass
     
     @staticmethod
-    def do(player,e=0):
-        if is_arrive(player,e):
-            player.state_machine.change_state(Idle,e)
+    def do(player):
         player.frame=(player.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)%3
         Run.set_next_position(player)
         pass
@@ -55,26 +53,22 @@ class Run:
     
     @staticmethod
     def set_run_angle(player):
-        player.angle=(math.atan2((player.destination[1]-player.y),(player.destination[0]-player.x))/rad)%360
+        player.angle=(math.atan2((player.destination[1]-player.y),(player.destination[0]-player.x))/degree)%360
 
     @staticmethod
     def set_sprite_showed(player):
-        if player.angle>=90 and player.angle<=270:
-            player.face='h'
-        else:
-            player.face=''
-        if player.angle>0 and player.angle<180:
-            player.updown=1
-        else:
-            player.updown=-1
+        showed_list=[['',1],['h',1],['h',-1],['',-1]]
+        i=int(player.angle//90)
+        player.face,player.updown=showed_list[i]
+
 
     @staticmethod
     def set_next_position(player):
         if((player.destination[0]-player.x)**2+(player.destination[1]-player.y)**2<=(game_framework.frame_time*RUN_SPEED_PPS)**2):
             player.x,player.y=player.destination[0],player.destination[1]
         else:
-            player.x+=(game_framework.frame_time*RUN_SPEED_PPS)*math.cos(player.angle*rad)
-            player.y+=(game_framework.frame_time*RUN_SPEED_PPS)*math.sin(player.angle*rad)
+            player.x+=(game_framework.frame_time*RUN_SPEED_PPS)*math.cos(player.angle*degree)
+            player.y+=(game_framework.frame_time*RUN_SPEED_PPS)*math.sin(player.angle*degree)
 
 # Idle : 기본 상태      
 class Idle:
@@ -136,7 +130,7 @@ class Player:
         self.face=''                                #  'h': 왼쪽, '': 오른쪽
         self.updown=1                               #  -1 : 다운, 1 : 업
         self.team=num                               # 팀 지정
-        self.state_machine=StateMachine(self,num)   # 상태머신 지정
+        self.state_machine=StateMachine(self)       # 상태머신 지정
         self.state_machine.start()                  # 상태머신 시작
         self.destination=[self.x,self.y]            # 도착지점
         self.size=[32,24]                           # player draw 사이즈
