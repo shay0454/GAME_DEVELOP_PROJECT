@@ -7,45 +7,17 @@ import game_framework
 def is_swing(player,e):
     return e[0]=='INPUT'and e[1].type==SDLK_DOWN and e[1].key==SDLK_SPACE
 
-def be_hitter(player,e):
-    return e[0]=='INPUT' and player.x==500 and player.y==60
-
-def is_hit(player,e):
-    return e[0]=='INPUT' and e.key==SDLK_SPACE
+def is_arrive(player,e):
+    return e[0]=='CHECK' and player.destination==[player.x,player.y]
 
 def is_not_arrive(player,e):
-    return player.destination!=[player.x,player.y]
-
-def is_not_hit(player,e):
-    return not is_hit(player,e)
-
-def is_catch(player,e):
-    pass
-
-def is_not_catch(player,e):
-    return not is_catch(player,e)
-
-def is_out(player,e):
-    pass
-
-def is_arrive(player,e):
-    return player.destination==[player.x,player.y]
+    return e[0]=='CHECK' and player.destination!=[player.x,player.y]
 
 def is_click(player,e):
-    if e[1]!=None and e[1].type==SDL_MOUSEBUTTONDOWN and player.x>=e[1].x-player.size[0]/2 and player.x<=e[1].x+player.size[0]/2 and player.y>=600-e[1].y-1-player.size[0]/2 and player.y<=600-e[1].y-1+player.size[0]/2:
-        player.destination,player.pre_base=player.pre_base,player.destination
-        if player.base_dir==1:
-            player.base-=1
-            player.base_dir=-1
-        else:
-            player.base+=1
-            player.base_dir=1
-        print('click')
-        return True
-    return False
+    return e[0]=='INPUT' and e[1].type==SDL_MOUSEBUTTONDOWN and player.x>=e[1].x-player.size[0]/2 and player.x<=e[1].x+player.size[0]/2 and player.y>=600-e[1].y-1-player.size[0]/2 and player.y<=600-e[1].y-1+player.size[0]/2
 
-PIXEL_PER_METER=5.9
-RUN_SPEED_KMPH=24
+PIXEL_PER_METER=5.9 #미터 당 픽셀 : 5.9 pixel
+RUN_SPEED_KMPH=24  #24km/h
 RUN_SPEED_MPM=(RUN_SPEED_KMPH*1000/60)
 RUN_SPEED_MPS=(RUN_SPEED_MPM/60)
 RUN_SPEED_PPS=(RUN_SPEED_MPS*PIXEL_PER_METER)
@@ -53,46 +25,25 @@ RUN_SPEED_PPS=(RUN_SPEED_MPS*PIXEL_PER_METER)
 TIME_PER_ACTION=1
 ACTION_PER_TIME=1/TIME_PER_ACTION
 FRAME_PER_ACTION=100
-class Hit: #416 488
-    @staticmethod
-    def enter(player,e):
-        print('hitter')
-        player.is_swing=False
-        player.frame=0
-    
-    @staticmethod
-    def exit(player,e):
-        pass
 
-    @staticmethod
-    def do(player):
-        if(is_swing[1]):
-            player.is_swing=True
-        if(player.is_swing):
-            player.frame=(player.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)%6
-            if player.frame==0:
-                player.is_swing=False
 
-    @staticmethod
-    def draw(player):
-        hitter_frame_left=[0,2,5,8,12,15] #draw용 좌측 벽
-        hitter_size=[16,24,24,24,24,24] #hitter 이미지 사이즈
-        relocate_hitter_frame_left=[24,24,0,0,0,24] #다시 맞추기 용
-        player.clip_composite_draw(hitter_frame_left[int(player.frame)]*8,488-72,hitter_size[int(player.frame)],32,0,'',player.x-relocate_hitter_frame_left[player.frame],player.y,player.size[0]*(hitter_size[player.frame])/24,player.size[1])
-        pass
-
+# Run : 이동 상태
 class Run:
     @staticmethod
     def enter(player,e):
-        Run.set_run_angle(player)
-        Run.set_sprite_showed(player)
+        Run.set_run_angle(player)  #도착점에 따른 각도 초기화
+        Run.set_sprite_showed(player)  #각도에 따른 스프라이트 변경
 
     @staticmethod
     def exit(player,e):
+        if is_click(player,e):  # 클릭했는가
+            pass
         pass
     
     @staticmethod
-    def do(player):
+    def do(player,e=0):
+        if is_arrive(player,e):
+            player.state_machine.change_state(Idle,e)
         player.frame=(player.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)%3
         Run.set_next_position(player)
         pass
@@ -124,12 +75,13 @@ class Run:
         else:
             player.x+=(game_framework.frame_time*RUN_SPEED_PPS)*math.cos(player.angle*rad)
             player.y+=(game_framework.frame_time*RUN_SPEED_PPS)*math.sin(player.angle*rad)
-            
+
+# Idle : 기본 상태      
 class Idle:
     @staticmethod
     def enter(player,e):
-        print('idle')
-        player.frame=0
+        print('idle')  #
+        player.frame=0  # 프레임 초기화
 
     @staticmethod
     def exit(player,e):
@@ -145,16 +97,16 @@ class Idle:
         pass
     
 class StateMachine:
-    def __init__(self,player,num):
+    def __init__(self,player):
         self.player=player
         self.cur_state=Idle
         self.state_table={
-            Idle : {is_not_arrive: Run},
+            Idle : {is_not_arrive:Run},
             Run : {is_click:Run, is_arrive:Idle}
         }
 
     def start(self):
-        self.cur_state.enter(self.player,('NONE',0))
+        self.cur_state.enter(self.player,('START',0))
 
     def update(self):
         self.cur_state.do(self.player)
@@ -165,11 +117,14 @@ class StateMachine:
     def handle_event(self,e):
         for ckeck_event, next_state in self.state_table[self.cur_state].items():
             if ckeck_event(self.player,e):
-                self.cur_state.exit(self.player,e)
-                self.cur_state=next_state
-                self.cur_state.enter(self.player,e)
+                self.change_state(next_state,e)
                 return True
         return False
+    
+    def change_state(self,next_state,e):
+        self.cur_state.exit(self.player,e)
+        self.cur_state=next_state
+        self.cur_state.enter(self.player,e)       
 
 class Player:
 
@@ -187,25 +142,24 @@ class Player:
         self.size=[32,24]                           # player draw 사이즈
         self.base=0
         self.base_dir=0
-        if num==1:
-            self.sprite_p=[0,320]
-        else:
-            self.sprite_p=[208,160]
+        self.sprite_p=[208,160]
         if Player.image==None:
             Player.image=load_image('Baseball_Players.png')
 
-    def handle_event(self,event):
+    # 외부 이벤트 체크
+    def handle_event(self,event):                           
         self.state_machine.handle_event(('INPUT',event))
 
-    def update(self):
-        self.state_machine.update()
+    # 업데이트
+    def update(self):                                       
+        self.state_machine.update()                         # cur_state.do
+        self.state_machine.handle_event(('CHECK',0))        # 내부 이벤트 (무입력) 체크
 
+    # 현 상태에 따른 draw
     def draw(self):
-        self.state_machine.draw()
+        self.state_machine.draw()                           # cur_state.draw
 
-    def goto(self,destination): #지점 이동용 명령
+    # 도착점 변경 함수
+    def goto(self,destination):
         self.destination=destination    
-
-    def stop(self): # 익수들이 공을 잡은 후에 쓸 명령
-        self.destination=[self.x,self.y]
 
