@@ -1,6 +1,6 @@
 from pico2d import*
 
-objects=[[],[],[]]
+objects=[[],[],[],[]]
 
 def add_object(o,depth=2):
     objects[depth].append(o)
