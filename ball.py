@@ -1,7 +1,7 @@
 from pico2d import load_image,draw_rectangle
 import game_framework
 import math
-
+import random
 rad=math.pi/180
 def is_catch(ball):
     pass
@@ -114,6 +114,10 @@ class Ball:
     def get_bb(self):
         return self.x-2,self.y-2,self.x+2,self.y+2
     
+    def handle_collision(self,group,other):
+        if group=='ball:bat':
+            self.shoot_angle=random.randint(30,150)
+
     def set_v(self,v):
         global run_speed_KMPH,run_speed_PPS
         run_speed_KMPH=v
