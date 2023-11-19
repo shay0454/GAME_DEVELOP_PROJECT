@@ -1,17 +1,11 @@
 from pico2d import *
-import math
-degree=math.pi/180
+import math,random
 from sdl2 import SDLK_DOWN, SDLK_SPACE
 import game_framework
-
+from behavior_tree import BehaviorTree, Action, Sequence, Condition, Selector
+import play_mode
 def is_swing(player,e):
     return e[0]=='INPUT'and e[1].type==SDLK_DOWN and e[1].key==SDLK_SPACE
-
-def is_arrive(player,e):
-    return e[0]=='CHECK' and player.destination==[player.x,player.y]
-
-def is_not_arrive(player,e):
-    return e[0]=='CHECK' and player.destination!=[player.x,player.y]
 
 def is_click(player,e):
     return e[0]=='INPUT' and e[1].type==SDL_MOUSEBUTTONDOWN and player.x>=e[1].x-player.size[0]/2 and player.x<=e[1].x+player.size[0]/2 and player.y>=600-e[1].y-1-player.size[0]/2 and player.y<=600-e[1].y-1+player.size[0]/2
@@ -24,15 +18,46 @@ RUN_SPEED_PPS=(RUN_SPEED_MPS*PIXEL_PER_METER)
 
 TIME_PER_ACTION=1
 ACTION_PER_TIME=1/TIME_PER_ACTION
-FRAME_PER_ACTION=100
+FRAME_PER_ACTION=8
+
+PI=math.pi
+class Shoot:
+    @staticmethod
+    def enter(player,e):
+        player.frame=0
+        player.waiting_time=random.randint(5,50)/10
+        player.set_time=get_time()
+        player.shooted=False
+        print('shoot')
+        pass
+
+    @staticmethod
+    def exit(player,e):
+        pass
+
+    @staticmethod
+    def do(player):
+        if(get_time()-player.set_time<player.waiting_time):
+            return
+        if not player.shooted:
+            player.frame=(player.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)
+            if player.frame>=8:
+                player.shooted=True
+                player.frame=7
+                player.fire_ball(random.randint(90,140),270)
+
+    def draw(player):
+        player_temp=[0,2,4,6,8,11,14,16]
+        player_size=[16,16,16,16,24,24,16,16,16]
+        dif=[0,0,0,0,0,0,4,8]
+        player.image.clip_composite_draw(player.sprite_p[0]+player_temp[int(player.frame)]*8,player.sprite_p[1]-24-dif[int(player.frame)]+160,player_size[int(player.frame)],24,0,'',player.x,player.y-dif[int(player.frame)],player.size[0]*(player_size[int(player.frame)])/24,player.size[1])
 
 
 # Run : 이동 상태
 class Run:
     @staticmethod
     def enter(player,e):
-        Run.set_run_angle(player)  #도착점에 따른 각도 초기화
-        Run.set_sprite_showed(player)  #각도에 따른 스프라이트 변경
+        pass
 
     @staticmethod
     def exit(player,e):
@@ -43,32 +68,13 @@ class Run:
     @staticmethod
     def do(player):
         player.frame=(player.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)%3
-        Run.set_next_position(player)
         pass
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw(int(player.frame)*16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.updown*12,16,20,0,player.face,player.x,player.y,player.size[0],player.size[1])
+        player.image.clip_composite_draw(int(player.frame)*16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.sprite_option[1]*12+48,16,20,0,player.sprite_option[0],player.x,player.y,player.size[0],player.size[1])
         pass
-    
-    @staticmethod
-    def set_run_angle(player):
-        player.angle=(math.atan2((player.destination[1]-player.y),(player.destination[0]-player.x))/degree)%360
 
-    @staticmethod
-    def set_sprite_showed(player):
-        showed_list=[['',1],['h',1],['h',-1],['',-1]]
-        i=int(player.angle//90)
-        player.face,player.updown=showed_list[i]
-
-
-    @staticmethod
-    def set_next_position(player):
-        if((player.destination[0]-player.x)**2+(player.destination[1]-player.y)**2<=(game_framework.frame_time*RUN_SPEED_PPS)**2):
-            player.x,player.y=player.destination[0],player.destination[1]
-        else:
-            player.x+=(game_framework.frame_time*RUN_SPEED_PPS)*math.cos(player.angle*degree)
-            player.y+=(game_framework.frame_time*RUN_SPEED_PPS)*math.sin(player.angle*degree)
 
 # Idle : 기본 상태      
 class Idle:
@@ -87,7 +93,7 @@ class Idle:
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw(player.sprite_p[0],player.sprite_p[1]+24,16,20,0,player.face,player.x,player.y,player.size[0],player.size[1])
+        player.image.clip_composite_draw(player.sprite_p[0],player.sprite_p[1]+72,16,20,0,player.sprite_option[0],player.x,player.y,player.size[0],player.size[1])
         pass
     
 class StateMachine:
@@ -95,8 +101,9 @@ class StateMachine:
         self.player=player
         self.cur_state=Idle
         self.state_table={
-            Idle : {is_not_arrive:Run},
-            Run : {is_click:Run, is_arrive:Idle}
+            Idle : {},
+            Run : {},
+            Shoot:{}
         }
 
     def start(self):
@@ -111,7 +118,9 @@ class StateMachine:
     def handle_event(self,e):
         for ckeck_event, next_state in self.state_table[self.cur_state].items():
             if ckeck_event(self.player,e):
-                self.change_state(next_state,e)
+                self.cur_state.exit(self.player,e)
+                self.cur_state=next_state
+                self.cur_state.enter(self.player,e)  
                 return True
         return False
     
@@ -124,18 +133,17 @@ class Player:
 
     image=None                                      # sprite
 
-    def __init__(self,num=1):
-        self.x,self.y=400,20                        # 기본 좌표
+    def __init__(self):
+        self.x,self.y=400,0                        # 기본 좌표
         self.frame=0                                # 프레임
-        self.face=''                                #  'h': 왼쪽, '': 오른쪽
-        self.updown=1                               #  -1 : 다운, 1 : 업
-        self.team=num                               # 팀 지정
+        self.sprite_option=['',1]                   #  'h': 왼쪽, '': 오른쪽,  -1 : 다운, 1 : 업
         self.state_machine=StateMachine(self)       # 상태머신 지정
         self.state_machine.start()                  # 상태머신 시작
         self.destination=[self.x,self.y]            # 도착지점
         self.size=[32,24]                           # player draw 사이즈
         self.base=0
-        self.base_dir=0
+        self.base_dir=1
+        self.build_behavior_tree()
         self.sprite_p=[208,160]
         if Player.image==None:
             Player.image=load_image('Baseball_Players.png')
@@ -147,7 +155,7 @@ class Player:
     # 업데이트
     def update(self):                                       
         self.state_machine.update()                         # cur_state.do
-        self.state_machine.handle_event(('CHECK',0))        # 내부 이벤트 (무입력) 체크
+        self.bt.run()
 
     # 현 상태에 따른 draw
     def draw(self):
@@ -157,3 +165,90 @@ class Player:
     def goto(self,destination):
         self.destination=destination    
 
+
+    # Action :
+    def change_state_Idle(self):
+        self.state_machine.change_state(Idle,('Change',0))
+        return BehaviorTree.SUCCESS
+
+    def change_state_Run(self):
+        self.state_machine.change_state(Run,('Change',0))
+        return BehaviorTree.SUCCESS
+
+    def set_run_angle(self):
+            self.rad=(math.atan2((self.destination[1]-self.y),(self.destination[0]-self.x)))%(2*PI)
+
+    def is_less_than(self):
+        return (self.destination[0]-self.x)**2+(self.destination[1]-self.y)**2<=(game_framework.frame_time*RUN_SPEED_PPS)**2
+    
+    def move_slightly_to(self):
+        if not self.is_less_than():
+            self.x+=(game_framework.frame_time*RUN_SPEED_PPS)*math.cos(self.rad)
+            self.y+=(game_framework.frame_time*RUN_SPEED_PPS)*math.sin(self.rad)
+            BehaviorTree.RUNNING
+        else:
+            self.x,self.y=self.destination[0],self.destination[1]
+            BehaviorTree.SUCCESS
+
+    def set_sprite_showed(self):
+        showed_list=[['',1],['h',1],['h',-1],['',-1]]
+        i=int(self.rad//(PI/2))
+        self.sprite_option=showed_list[i]
+        BehaviorTree.SUCCESS
+
+
+    #Condition : 
+    def is_arrive(self):
+        if self.destination==[self.x,self.y]:
+            return BehaviorTree.SUCCESS
+        else:
+            return BehaviorTree.FAIL
+        
+    def is_not_arrive(self):
+        if self.destination!=[self.x,self.y]:
+            return BehaviorTree.SUCCESS
+        else:
+            return BehaviorTree.FAIL
+        
+    def is_state_Idle(self):
+        if self.state_machine.cur_state==Idle:
+            return BehaviorTree.SUCCESS
+        else:
+            return BehaviorTree.FAIL
+
+    def is_state_Run(self):
+        if self.state_machine.cur_state==Run:
+            return BehaviorTree.SUCCESS
+        else:
+            return BehaviorTree.FAIL
+
+    def is_shooter(self):
+        if play_mode.control.fielders[0]==self:
+            pass
+            
+    #define :
+    def build_behavior_tree(self):
+        a_s1=Action('상태를 Idle로 변경',self.change_state_Idle)
+        a_s2=Action('상태를 Run으로 변경',self.change_state_Run)
+        a_s2_1=Action('방향 설정',self.set_run_angle)
+        a_s2_2=Action('방향에 따른 스프라이트 설정',self.set_sprite_showed)
+        a_s2_3=Action('조금씩 이동',self.move_slightly_to)
+
+        c1_1=Condition('도착하였는가',self.is_arrive)
+        c1_2=Condition('도착하지 못하였는가',self.is_not_arrive)
+        c_s1=Condition('Idle인가',self.is_state_Idle)
+        c_s2=Condition('Run인가',self.is_state_Run)
+
+
+
+
+        self.SEQ_Run=Sequence('이동상태',a_s2_1,a_s2_2,a_s2_3)
+        self.SEQ_Idle=Sequence('정지상태',)
+
+        self.SEQ_set_Idle=Sequence('Idle 상태 확인',c1_1,a_s1,self.SEQ_Idle)
+        self.SEQ_set_Run=Sequence('Run 상태 확인',c1_2,a_s2,self.SEQ_Run)
+
+        self.SEL_check_state=Selector('상태확인',self.SEQ_set_Idle,self.SEQ_set_Run)
+
+        root=self.test=Selector('상태',self.SEQ_set_Idle,self.SEQ_set_Run)
+        self.bt=BehaviorTree(root)
