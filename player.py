@@ -57,6 +57,7 @@ class Shoot:
 class Run:
     @staticmethod
     def enter(player,e):
+        player.give_bt()
         pass
 
     @staticmethod
@@ -81,6 +82,7 @@ class Idle:
     @staticmethod
     def enter(player,e):
         print('idle')  #
+        player.give_bt()
         player.frame=0  # 프레임 초기화
 
     @staticmethod
@@ -137,14 +139,16 @@ class Player:
         self.x,self.y=400,0                        # 기본 좌표
         self.frame=0                                # 프레임
         self.sprite_option=['',1]                   #  'h': 왼쪽, '': 오른쪽,  -1 : 다운, 1 : 업
-        self.state_machine=StateMachine(self)       # 상태머신 지정
-        self.state_machine.start()                  # 상태머신 시작
         self.destination=[self.x,self.y]            # 도착지점
         self.size=[32,24]                           # player draw 사이즈
         self.base=0
         self.base_dir=1
+        self.bt_list=[]
         self.build_behavior_tree()
         self.sprite_p=[208,160]
+        self.state_machine=StateMachine(self)       # 상태머신 지정
+        self.state_machine.start()                  # 상태머신 시작
+
         if Player.image==None:
             Player.image=load_image('Baseball_Players.png')
 
@@ -165,6 +169,11 @@ class Player:
     def goto(self,destination):
         self.destination=destination    
 
+    def give_bt(self):
+        if self.state_machine.cur_state==Idle:
+            self.bt=self.bt_list[0]
+        elif self.state_machine.cur_state==Run:
+            self.bt=self.bt_list[1]
 
     # Action :
     def change_state_Idle(self):
@@ -177,6 +186,7 @@ class Player:
 
     def set_run_angle(self):
             self.rad=(math.atan2((self.destination[1]-self.y),(self.destination[0]-self.x)))%(2*PI)
+            return BehaviorTree.SUCCESS
 
     def is_less_than(self):
         return (self.destination[0]-self.x)**2+(self.destination[1]-self.y)**2<=(game_framework.frame_time*RUN_SPEED_PPS)**2
@@ -185,16 +195,16 @@ class Player:
         if not self.is_less_than():
             self.x+=(game_framework.frame_time*RUN_SPEED_PPS)*math.cos(self.rad)
             self.y+=(game_framework.frame_time*RUN_SPEED_PPS)*math.sin(self.rad)
-            BehaviorTree.RUNNING
+            return BehaviorTree.RUNNING
         else:
             self.x,self.y=self.destination[0],self.destination[1]
-            BehaviorTree.SUCCESS
+            return BehaviorTree.SUCCESS
 
-    def set_sprite_showed(self):
+    def set_sprite_option(self):
         showed_list=[['',1],['h',1],['h',-1],['',-1]]
         i=int(self.rad//(PI/2))
         self.sprite_option=showed_list[i]
-        BehaviorTree.SUCCESS
+        return BehaviorTree.SUCCESS
 
 
     #Condition : 
@@ -231,7 +241,7 @@ class Player:
         a_s1=Action('상태를 Idle로 변경',self.change_state_Idle)
         a_s2=Action('상태를 Run으로 변경',self.change_state_Run)
         a_s2_1=Action('방향 설정',self.set_run_angle)
-        a_s2_2=Action('방향에 따른 스프라이트 설정',self.set_sprite_showed)
+        a_s2_2=Action('방향에 따른 스프라이트 설정',self.set_sprite_option)
         a_s2_3=Action('조금씩 이동',self.move_slightly_to)
 
         c1_1=Condition('도착하였는가',self.is_arrive)
@@ -240,15 +250,15 @@ class Player:
         c_s2=Condition('Run인가',self.is_state_Run)
 
 
+        self.SEQ_is_Idle=Sequence('Idle 상태인지 확인',c1_1,a_s1)
+        self.SEQ_is_Run=Sequence('Run 상태인지 확인',c1_2,a_s2)
+        self.SEQ_Run=Sequence('이동상태작동',a_s2_1,a_s2_2,a_s2_3)
+        self.SEQ_Idle=Sequence('정지상태작동',)
 
-
-        self.SEQ_Run=Sequence('이동상태',a_s2_1,a_s2_2,a_s2_3)
-        self.SEQ_Idle=Sequence('정지상태',)
-
-        self.SEQ_set_Idle=Sequence('Idle 상태 확인',c1_1,a_s1,self.SEQ_Idle)
-        self.SEQ_set_Run=Sequence('Run 상태 확인',c1_2,a_s2,self.SEQ_Run)
-
+        self.SEQ_set_Idle=Selector('Idle 상태 활동',self.SEQ_Idle,self.SEQ_is_Run)
+        self.bt_list.append(self.SEQ_set_Idle)
+        self.SEQ_set_Run=Selector('Run 상태 활동',self.SEQ_Run,self.SEQ_is_Idle)
+        self.bt_list.append(self.SEQ_set_Run)
         self.SEL_check_state=Selector('상태확인',self.SEQ_set_Idle,self.SEQ_set_Run)
 
-        root=self.test=Selector('상태',self.SEQ_set_Idle,self.SEQ_set_Run)
-        self.bt=BehaviorTree(root)
+        self.bt=BehaviorTree(self.SEQ_set_Idle)
