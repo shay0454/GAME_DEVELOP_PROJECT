@@ -2,8 +2,9 @@ from pico2d import *
 import math,random
 from sdl2 import SDLK_DOWN, SDLK_SPACE
 import game_framework
+import game_world
 from behavior_tree import BehaviorTree, Action, Sequence, Condition, Selector
-import play_mode
+from ball import Ball
 def is_swing(player,e):
     return e[0]=='INPUT'and e[1].type==SDLK_DOWN and e[1].key==SDLK_SPACE
 
@@ -24,12 +25,11 @@ PI=math.pi
 class Shoot:
     @staticmethod
     def enter(player,e):
-        player.frame=0
-        player.waiting_time=random.randint(5,50)/10
-        player.set_time=get_time()
-        player.shooted=False
         print('shoot')
-        pass
+        player.get_bt()
+        player.frame=0
+        player.is_setted=False
+        player.is_shoot=False
 
     @staticmethod
     def exit(player,e):
@@ -37,14 +37,7 @@ class Shoot:
 
     @staticmethod
     def do(player):
-        if(get_time()-player.set_time<player.waiting_time):
-            return
-        if not player.shooted:
-            player.frame=(player.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)
-            if player.frame>=8:
-                player.shooted=True
-                player.frame=7
-                player.fire_ball(random.randint(90,140),270)
+        pass
 
     def draw(player):
         player_temp=[0,2,4,6,8,11,14,16]
@@ -57,7 +50,7 @@ class Shoot:
 class Run:
     @staticmethod
     def enter(player,e):
-        player.give_bt()
+        player.get_bt()
         pass
 
     @staticmethod
@@ -82,7 +75,7 @@ class Idle:
     @staticmethod
     def enter(player,e):
         print('idle')  #
-        player.give_bt()
+        player.get_bt()
         player.frame=0  # 프레임 초기화
 
     @staticmethod
@@ -135,10 +128,10 @@ class Player:
 
     image=None                                      # sprite
 
-    def __init__(self):
-        self.x,self.y=400,0                        # 기본 좌표
+    def __init__(self,x=400,y=0):
+        self.x,self.y=x,y                           # 기본 좌표
         self.frame=0                                # 프레임
-        self.sprite_option=['',1]                   #  'h': 왼쪽, '': 오른쪽,  -1 : 다운, 1 : 업
+        self.sprite_option=['',1]                   # 'h': 왼쪽, '': 오른쪽,  -1 : 다운, 1 : 업
         self.destination=[self.x,self.y]            # 도착지점
         self.size=[32,24]                           # player draw 사이즈
         self.base=0
@@ -169,11 +162,18 @@ class Player:
     def goto(self,destination):
         self.destination=destination    
 
-    def give_bt(self):
+    def fire_ball(self,cur_v,angle):
+        ball=Ball(self.x,self.y,cur_v,angle)
+        game_world.add_object(ball,3)
+        game_world.add_collision_pair('ball:bat',ball,None)
+
+    def get_bt(self):
         if self.state_machine.cur_state==Idle:
             self.bt=self.bt_list[0]
         elif self.state_machine.cur_state==Run:
             self.bt=self.bt_list[1]
+        elif self.state_machine.cur_state==Shoot:
+            self.bt=self.bt_list[2]
 
     # Action :
     def change_state_Idle(self):
@@ -232,10 +232,34 @@ class Player:
         else:
             return BehaviorTree.FAIL
 
-    def is_shooter(self):
-        if play_mode.control.fielders[0]==self:
-            pass
-            
+    def is_not_shoot_setted(self):
+        if not self.is_setted:
+            return BehaviorTree.SUCCESS
+        else:
+            return BehaviorTree.FAIL
+    
+    def set_waiting_time_and_time(self):
+        self.is_setted=True
+        self.waiting_time=random.randint(10,50)/10
+        self.set_time=get_time()
+        return BehaviorTree.SUCCESS
+    
+    def waiting_shoot(self):
+        if get_time()-self.set_time>self.waiting_time:
+            return BehaviorTree.SUCCESS
+        else:
+            return BehaviorTree.RUNNING
+
+    def do_shoot(self):
+        if not self.is_shoot:
+            self.frame=(self.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)
+            if self.frame>=8:
+                self.frame=7
+                self.is_shoot=True
+                self.fire_ball(random.randint(90,140),270)
+                return BehaviorTree.SUCCESS
+            return BehaviorTree.RUNNING
+        return BehaviorTree.SUCCESS
     #define :
     def build_behavior_tree(self):
         a_s1=Action('상태를 Idle로 변경',self.change_state_Idle)
@@ -243,22 +267,31 @@ class Player:
         a_s2_1=Action('방향 설정',self.set_run_angle)
         a_s2_2=Action('방향에 따른 스프라이트 설정',self.set_sprite_option)
         a_s2_3=Action('조금씩 이동',self.move_slightly_to)
-
+        a_s3_1=Action('기다릴 시간 셋팅',self.set_waiting_time_and_time)
+        a_s3_2=Action('기다림',self.waiting_shoot)
+        a_s3_3=Action('슈팅',self.do_shoot)
+        
         c1_1=Condition('도착하였는가',self.is_arrive)
         c1_2=Condition('도착하지 못하였는가',self.is_not_arrive)
         c_s1=Condition('Idle인가',self.is_state_Idle)
         c_s2=Condition('Run인가',self.is_state_Run)
-
+        c_s3_1=Condition('Shoot 이미 활동하지 않았는가',self.is_not_shoot_setted)
 
         self.SEQ_is_Idle=Sequence('Idle 상태인지 확인',c1_1,a_s1)
-        self.SEQ_is_Run=Sequence('Run 상태인지 확인',c1_2,a_s2)
-        self.SEQ_Run=Sequence('이동상태작동',a_s2_1,a_s2_2,a_s2_3)
         self.SEQ_Idle=Sequence('정지상태작동',)
+
+        self.SEQ_is_Run=Sequence('Run 상태인지 확인',c1_2,a_s2)
+        self.SEQ_Run=Sequence('Run 상태작동',a_s2_1,a_s2_2,a_s2_3)
+
+        self.SEQ_is_Shoot=Sequence('Shoot 상태인지 확인',)
+        self.SEQ_Shoot=Sequence('Shoot 상태작동',c_s3_1,a_s3_1,a_s3_2,a_s3_3)
 
         self.SEQ_set_Idle=Selector('Idle 상태 활동',self.SEQ_Idle,self.SEQ_is_Run)
         self.bt_list.append(self.SEQ_set_Idle)
         self.SEQ_set_Run=Selector('Run 상태 활동',self.SEQ_Run,self.SEQ_is_Idle)
         self.bt_list.append(self.SEQ_set_Run)
+        self.SEQ_set_Shoot=Selector('Shoot 상태 활동',self.SEQ_Shoot)
+        self.bt_list.append(self.SEQ_set_Shoot)
         self.SEL_check_state=Selector('상태확인',self.SEQ_set_Idle,self.SEQ_set_Run)
 
         self.bt=BehaviorTree(self.SEQ_set_Idle)
