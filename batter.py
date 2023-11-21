@@ -5,6 +5,7 @@ from sdl2 import SDLK_DOWN, SDLK_SPACE
 import game_framework
 import game_world
 from ball import Ball
+from bat import Bat
 import random
 from behavior_tree import BehaviorTree, Action, Sequence, Condition, Selector
 def is_swing(batter,e):
@@ -73,7 +74,7 @@ class Hit:
     
     @staticmethod
     def exit(player,e):
-        player.swing=True
+
         pass
 
     @staticmethod
@@ -88,7 +89,7 @@ class Hit:
 class Hitting: #416 488
     @staticmethod
     def enter(player,e):
-        print('hitter')
+        print('hitting')
         player.get_bt()
         player.swing=True
         player.frame=0
@@ -107,7 +108,7 @@ class Hitting: #416 488
         hitter_frame_left=[0,2,5,8,12,15] #draw용 좌측 벽
         hitter_size=[16,24,24,24,24,24] #hitter 이미지 사이즈
         relocate_hitter_frame_left=[24,24,0,0,0,24] #다시 맞추기 용
-        player.image.clip_composite_draw(hitter_frame_left[int(player.frame)]*8,488-72-48,hitter_size[int(player.frame)],32,0,'',player.x-relocate_hitter_frame_left[player.frame],player.y,int(4/3*player.size[0]*(hitter_size[player.frame])/24),player.size[1])
+        player.image.clip_composite_draw(hitter_frame_left[int(player.frame)]*8,488-72,hitter_size[int(player.frame)],32,0,'',player.x-relocate_hitter_frame_left[int(player.frame)],player.y,int(4/3*player.size[0]*(hitter_size[int(player.frame)])/24),player.size[1])
         pass
 
 
@@ -177,13 +178,12 @@ class Batter:
         self.destination=[self.x,self.y]            # 도착지점
         self.size=[32,24]                           # batter draw 사이즈
         self.swing=False                            # 스윙 유무
-        self.hit_delay=0.7
+        self.hit_delay=0.5
         self.base=0
         self.base_dir=0
         self.bt_list=[]
         self.build_behavior_tree()
         self.sprite_p=[0,320]
-        self.swing=False
         self.state_machine=StateMachine(self)       # 상태머신 지정
         self.state_machine.start()                  # 상태머신 시작
 
@@ -271,6 +271,7 @@ class Batter:
             return BehaviorTree.FAIL
 
     def is_hitter_swing(self):
+        print("is_hitter_swing")
         if self.swing:
             return BehaviorTree.SUCCESS
         else:
@@ -281,28 +282,31 @@ class Batter:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.FAIL
-        
+
+    def create_bat(self):
+        pass
+
     def do_hitting(self):
-        if not self.tf:
-            self.frame=(self.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)
+        print("do_hitting")
+        self.frame=(self.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)
         if self.frame>=6:
             self.frame=5
-            self.tf=True
             return BehaviorTree.SUCCESS
         return BehaviorTree.RUNNING
 
     def set_waiting_time_and_time(self):
+        print('set time')
         self.time=get_time()
         return BehaviorTree.SUCCESS
     
     def check_time(self):
+        print('check time',get_time()-self.time)
         if get_time()-self.time>=self.hit_delay:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.RUNNING
         
     def set_end_swing(self):
-        self.tf=False
         self.swing=False
         return BehaviorTree.SUCCESS
     
@@ -341,15 +345,15 @@ class Batter:
         self.SEQ_Run=Sequence('이동상태작동',a_s2_1,a_s2_2,a_s2_3)
 
         self.SEQ_is_Hit=Sequence('Hit 상태인지 확인',c_2_2,a_s4)
-        self.SEQ_do_Hitting=('Hitting 활동',c_2_1,a_s4_1,a_s4_2,a_s4_3,a_s4_4)
+        self.SEQ_do_Hitting=Sequence('Hitting 활동',a_s4_1,a_s4_2,a_s4_3,a_s4_4)
 
-        self.SEQ_set_Idle=Selector('Idle 상태 활동',self.SEQ_Idle,self.SEQ_is_Run)
-        self.bt_list.append(self.SEQ_set_Idle)
-        self.SEQ_set_Run=Selector('Run 상태 활동',self.SEQ_Run,self.SEQ_is_Idle)
-        self.bt_list.append(self.SEQ_set_Run)
-        self.SEQ_set_Hit=Selector('스윙 준비 상태 활동',)
-        self.bt_list.append(self.SEQ_set_Hit)
-        self.SEQ_set_Hitting=Selector('스윙 중 상태 활동',self.SEQ_do_Hitting,self.SEQ_is_Hit)
-        self.bt_list.append(self.SEQ_set_Hitting)
+        self.SEQ_set_Idle=Sequence('Idle 상태 활동',self.SEQ_Idle,self.SEQ_is_Run)
+        self.bt_list.append(BehaviorTree(self.SEQ_set_Idle))
+        self.SEQ_set_Run=Sequence('Run 상태 활동',self.SEQ_Run,self.SEQ_is_Idle)
+        self.bt_list.append(BehaviorTree(self.SEQ_set_Run))
+        self.SEQ_set_Hit=Sequence('스윙 준비 상태 활동',)
+        self.bt_list.append(BehaviorTree(self.SEQ_set_Hit))
+        self.SEL_set_Hitting=Sequence('스윙 중 상태 활동',self.SEQ_do_Hitting,self.SEQ_is_Hit)
+        self.bt_list.append(BehaviorTree(self.SEL_set_Hitting))
 
         self.bt=BehaviorTree(self.SEQ_set_Idle)    

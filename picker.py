@@ -3,44 +3,25 @@ import math
 rad=math.pi/180
 from sdl2 import SDLK_DOWN, SDLK_SPACE
 import game_framework
+import game_world
+from ball import Ball
 import random
-def is_swing(picker,e):
-    return e[0]=='INPUT'and e[1].type==SDLK_DOWN and e[1].key==SDLK_SPACE
+from behavior_tree import BehaviorTree, Action, Sequence, Condition, Selector
 
-def be_hitter(picker,e):
-    return e[0]=='INPUT' and picker.x==500 and picker.y==60
-
-def is_hit(picker,e):
-    return False
-
-def is_not_arrive(picker,e):
-    return picker.destination!=[picker.x,picker.y]
-
-def is_not_hit(picker,e):
-    return not is_hit(picker,e)
+def is_not_arrive(player,e):
+    return e[0]=='CHECK' and player.destination!=[player.x,player.y]
 
 def is_catch(picker,e):
     pass
 
 def is_not_catch(picker,e):
-    return not is_catch(picker,e)
+    pass
 
+def is_arrive(player,e):
+    return e[0]=='CHECK' and player.destination==[player.x,player.y]
 
-def is_arrive(picker,e):
-    return picker.destination==[picker.x,picker.y]
-
-def is_click(picker,e):
-    if e[1]!=None and e[1].type==SDL_MOUSEBUTTONDOWN and picker.x>=e[1].x-picker.size[0]/2 and picker.x<=e[1].x+picker.size[0]/2 and picker.y>=600-e[1].y-1-picker.size[0]/2 and picker.y<=600-e[1].y-1+picker.size[0]/2:
-        picker.destination,picker.pre_base=picker.pre_base,picker.destination
-        if picker.base_dir==1:
-            picker.base-=1
-            picker.base_dir=-1
-        else:
-            picker.base+=1
-            picker.base_dir=1
-        print('click')
-        return True
-    return False
+def is_click(player,e):
+    return e[0]=='INPUT' and e[1].type==SDL_MOUSEBUTTONDOWN and player.x>=e[1].x-player.size[0]/2 and player.x<=e[1].x+player.size[0]/2 and player.y>=600-e[1].y-1-player.size[0]/2 and player.y<=600-e[1].y-1+player.size[0]/2
 
 def is_ready_to_catch(picker,e):
     pass
@@ -58,6 +39,7 @@ FRAME_PER_ACTION=10
 class Run:
     @staticmethod
     def enter(player,e):
+        print('run')
         Run.set_run_angle(player)
         Run.set_sprite_showed(player)
 
@@ -117,6 +99,7 @@ class Catch:
 class Shoot:
     @staticmethod
     def enter(picker,e):
+        picker.get_bt()
         picker.frame=0
         picker.waiting_time=random.randint(5,50)/10
         picker.set_time=get_time()
@@ -137,6 +120,7 @@ class Shoot:
             if picker.frame>=8:
                 picker.shooted=True
                 picker.frame=7
+                picker.fire_ball(random.randint(90,140),270)
 
     def draw(picker):
         picker_temp=[0,2,4,6,8,11,14,16]
@@ -157,7 +141,8 @@ class Idle:
     
     @staticmethod
     def do(picker):
-        pass
+        if not is_arrive(picker,('CHECK',0)):
+            picker.state_machine.change_state(Run,('CHANGE',0))
 
     @staticmethod
     def draw(picker):
@@ -188,16 +173,14 @@ class StateMachine:
     def handle_event(self,e):
         for ckeck_event, next_state in self.state_table[self.cur_state].items():
             if ckeck_event(self.picker,e):
-                self.cur_state.exit(self.picker,e)
-                self.cur_state=next_state
-                self.cur_state.enter(self.picker,e)
+                self.change_state(next_state,e)
                 return True
         return False
     
-    def change_state(self,next_state):
-        self.cur_state.exit(self.picker,None)
+    def change_state(self,next_state,e):
+        self.cur_state.exit(self.picker,e)
         self.cur_state=next_state
-        self.cur_state.enter(self.picker,None)
+        self.cur_state.enter(self.picker,e)       
 
 class Picker:
 
@@ -233,3 +216,90 @@ class Picker:
     def stop(self): # 익수들이 공을 잡은 후에 쓸 명령
         self.destination=[self.x,self.y]
 
+    def fire_ball(self,cur_v,angle):
+        ball=Ball(self.x,self.y,cur_v,angle)
+        game_world.add_object(ball,3)
+        game_world.add_collision_pair('ball:bat',ball,None)
+
+    # Action :
+    def change_state_Idle(self):
+        self.state_machine.change_state(Idle,('Change',0))
+        return BehaviorTree.SUCCESS
+
+    def change_state_Run(self):
+        self.state_machine.change_state(Run,('Change',0))
+        return BehaviorTree.SUCCESS
+
+    def set_run_angle(self):
+            self.rad=(math.atan2((self.destination[1]-self.y),(self.destination[0]-self.x)))%(2*PI)
+
+    def is_less_than(self):
+        return (self.destination[0]-self.x)**2+(self.destination[1]-self.y)**2<=(game_framework.frame_time*RUN_SPEED_PPS)**2
+    
+    def move_slightly_to(self):
+        if not self.is_less_than():
+            self.x+=(game_framework.frame_time*RUN_SPEED_PPS)*math.cos(self.rad)
+            self.y+=(game_framework.frame_time*RUN_SPEED_PPS)*math.sin(self.rad)
+            BehaviorTree.RUNNING
+        else:
+            self.x,self.y=self.destination[0],self.destination[1]
+            BehaviorTree.SUCCESS
+
+    def set_sprite_showed(self):
+        showed_list=[['',1],['h',1],['h',-1],['',-1]]
+        i=int(self.rad//(PI/2))
+        self.sprite_option=showed_list[i]
+        BehaviorTree.SUCCESS
+
+
+    #Condition : 
+    def is_arrive(self):
+        if self.destination==[self.x,self.y]:
+            return BehaviorTree.SUCCESS
+        else:
+            return BehaviorTree.FAIL
+        
+    def is_not_arrive(self):
+        if self.destination!=[self.x,self.y]:
+            return BehaviorTree.SUCCESS
+        else:
+            return BehaviorTree.FAIL
+        
+    def is_state_Idle(self):
+        if self.state_machine.cur_state==Idle:
+            return BehaviorTree.SUCCESS
+        else:
+            return BehaviorTree.FAIL
+
+    def is_state_Run(self):
+        if self.state_machine.cur_state==Run:
+            return BehaviorTree.SUCCESS
+        else:
+            return BehaviorTree.FAIL
+
+    #define :
+    def build_behavior_tree(self):
+        a_s1=Action('상태를 Idle로 변경',self.change_state_Idle)
+        a_s2=Action('상태를 Run으로 변경',self.change_state_Run)
+        a_s2_1=Action('방향 설정',self.set_run_angle)
+        a_s2_2=Action('방향에 따른 스프라이트 설정',self.set_sprite_showed)
+        a_s2_3=Action('조금씩 이동',self.move_slightly_to)
+
+        c1_1=Condition('도착하였는가',self.is_arrive)
+        c1_2=Condition('도착하지 못하였는가',self.is_not_arrive)
+        c_s1=Condition('Idle인가',self.is_state_Idle)
+        c_s2=Condition('Run인가',self.is_state_Run)
+
+
+
+
+        self.SEQ_Run=Sequence('이동상태',a_s2_1,a_s2_2,a_s2_3)
+        self.SEQ_Idle=Sequence('정지상태',)
+
+        self.SEQ_set_Idle=Sequence('Idle 상태 확인',c1_1,a_s1,self.SEQ_Idle)
+        self.SEQ_set_Run=Sequence('Run 상태 확인',c1_2,a_s2,self.SEQ_Run)
+
+        self.SEL_check_state=Selector('상태확인',self.SEQ_set_Idle,self.SEQ_set_Run)
+
+        root=self.test=Selector('상태',self.SEQ_set_Idle,self.SEQ_set_Run)
+        self.bt=BehaviorTree(root)

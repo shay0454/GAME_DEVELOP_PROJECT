@@ -232,8 +232,8 @@ class Player:
         else:
             return BehaviorTree.FAIL
 
-    def is_not_shoot_setted(self):
-        if not self.is_setted:
+    def is_shoot_setted(self):
+        if self.is_setted:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.FAIL
@@ -260,6 +260,7 @@ class Player:
                 return BehaviorTree.SUCCESS
             return BehaviorTree.RUNNING
         return BehaviorTree.SUCCESS
+    
     #define :
     def build_behavior_tree(self):
         a_s1=Action('상태를 Idle로 변경',self.change_state_Idle)
@@ -275,23 +276,24 @@ class Player:
         c1_2=Condition('도착하지 못하였는가',self.is_not_arrive)
         c_s1=Condition('Idle인가',self.is_state_Idle)
         c_s2=Condition('Run인가',self.is_state_Run)
-        c_s3_1=Condition('Shoot 이미 활동하지 않았는가',self.is_not_shoot_setted)
+        c_s3_1=Condition('Shoot 이미 활동하였는가',self.is_shoot_setted)
 
         self.SEQ_is_Idle=Sequence('Idle 상태인지 확인',c1_1,a_s1)
-        self.SEQ_Idle=Sequence('정지상태작동',)
+        self.SEQ_Idle=Sequence('기본상태작동',)
 
         self.SEQ_is_Run=Sequence('Run 상태인지 확인',c1_2,a_s2)
         self.SEQ_Run=Sequence('Run 상태작동',a_s2_1,a_s2_2,a_s2_3)
 
+        self.SEQ_do_Shoot=Sequence('Shoot 상태 활동',a_s3_1,a_s3_2,a_s3_3)
         self.SEQ_is_Shoot=Sequence('Shoot 상태인지 확인',)
-        self.SEQ_Shoot=Sequence('Shoot 상태작동',c_s3_1,a_s3_1,a_s3_2,a_s3_3)
+        self.SEL_Shoot=Selector('Shoot 상태 체크 후 활동',c_s3_1,self.SEQ_do_Shoot)
 
-        self.SEQ_set_Idle=Selector('Idle 상태 활동',self.SEQ_Idle,self.SEQ_is_Run)
-        self.bt_list.append(self.SEQ_set_Idle)
-        self.SEQ_set_Run=Selector('Run 상태 활동',self.SEQ_Run,self.SEQ_is_Idle)
-        self.bt_list.append(self.SEQ_set_Run)
-        self.SEQ_set_Shoot=Selector('Shoot 상태 활동',self.SEQ_Shoot)
-        self.bt_list.append(self.SEQ_set_Shoot)
-        self.SEL_check_state=Selector('상태확인',self.SEQ_set_Idle,self.SEQ_set_Run)
+        self.SEL_set_Idle=Selector('Idle 상태 활동',self.SEQ_is_Run,self.SEQ_Idle)
+        self.bt_list.append(BehaviorTree(self.SEL_set_Idle))
+        self.SEL_set_Run=Selector('Run 상태 활동',self.SEQ_is_Idle,self.SEQ_Run)
+        self.bt_list.append(BehaviorTree(self.SEL_set_Run))
+        self.SEQ_set_Shoot=Sequence('Shoot 상태 활동',self.SEL_Shoot)
+        self.bt_list.append(BehaviorTree(self.SEQ_set_Shoot))
+        self.SEL_check_state=Sequence('상태확인',self.SEL_set_Idle,self.SEL_set_Run)
 
-        self.bt=BehaviorTree(self.SEQ_set_Idle)
+        self.bt=BehaviorTree(self.SEL_set_Idle)
