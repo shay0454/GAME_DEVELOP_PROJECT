@@ -1,13 +1,13 @@
 from pico2d import load_image,draw_rectangle
 import game_framework
 import math
+import play_mode
 import random
-rad=math.pi/180
 def is_catch(ball):
     pass
 
 PIXEL_PER_METER=5.9
-
+PI=math.pi
 TIME_PER_ACTION=1
 ACTION_PER_TIME=1/TIME_PER_ACTION
 FRAME_PER_ACTION=200
@@ -103,8 +103,8 @@ class Ball:
         self.cur_state.enter(self,None)
 
     def update(self):
-        self.x+=game_framework.frame_time*run_speed_PPS*math.cos(self.shoot_angle*rad)
-        self.y+=game_framework.frame_time*run_speed_PPS*math.sin(self.shoot_angle*rad)
+        self.x+=game_framework.frame_time*run_speed_PPS*math.cos(self.shoot_angle)
+        self.y+=game_framework.frame_time*run_speed_PPS*math.sin(self.shoot_angle)
 
     
     def draw(self):
@@ -116,7 +116,7 @@ class Ball:
     
     def handle_collision(self,group,other):
         if group=='ball:bat':
-            self.shoot_angle=random.randint(30,150)
+            self.shoot_angle=play_mode.control.players[-1].bat.angle+PI/2+PI*1/12*random.random()
 
     def set_v(self,v):
         global run_speed_KMPH,run_speed_PPS

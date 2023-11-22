@@ -83,7 +83,7 @@ class Hit:
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw(0,488-72,16,32,0,'',player.x-24,player.y,player.size[0],int(4/3*player.size[1]))
+        player.image.clip_composite_draw(0,488-72,16,32,0,'',player.x,player.y,player.size[0],int(4/3*player.size[1]))
         pass
 
 class Hitting: #416 488
@@ -107,7 +107,7 @@ class Hitting: #416 488
     def draw(player):
         hitter_frame_left=[0,2,5,8,12,15] #draw용 좌측 벽
         hitter_size=[16,24,24,24,24,24] #hitter 이미지 사이즈
-        relocate_hitter_frame_left=[24,24,0,0,0,24] #다시 맞추기 용
+        relocate_hitter_frame_left=[0,0,-24,-24,-24,0] #다시 맞추기 용
         player.image.clip_composite_draw(hitter_frame_left[int(player.frame)]*8,488-72,hitter_size[int(player.frame)],32,0,'',player.x-relocate_hitter_frame_left[int(player.frame)],player.y,int(player.size[0]*(hitter_size[int(player.frame)])/16),int(4/3*player.size[1]))
         pass
 
@@ -178,7 +178,7 @@ class Batter:
         self.destination=[self.x,self.y]            # 도착지점
         self.size=[32,24]                           # batter draw 사이즈
         self.swing=False                            # 스윙 유무
-        self.hit_delay=0.5
+        self.hit_delay=0.8
         self.base=0
         self.base_dir=0
         self.bt_list=[]
@@ -284,23 +284,22 @@ class Batter:
             return BehaviorTree.FAIL
 
     def create_bat(self):
+        self.bat=Bat(self.x,self.y)
+        game_world.add_object(self.bat,2)
         pass
 
     def do_hitting(self):
-        print("do_hitting")
-        self.frame=(self.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)
+        self.frame=(self.frame+ACTION_PER_TIME*3*FRAME_PER_ACTION*game_framework.frame_time)
         if self.frame>=6:
             self.frame=5
             return BehaviorTree.SUCCESS
         return BehaviorTree.RUNNING
 
     def set_waiting_time_and_time(self):
-        print('set time')
         self.time=get_time()
         return BehaviorTree.SUCCESS
     
     def check_time(self):
-        print('check time',get_time()-self.time)
         if get_time()-self.time>=self.hit_delay:
             return BehaviorTree.SUCCESS
         else:
@@ -308,6 +307,8 @@ class Batter:
         
     def set_end_swing(self):
         self.swing=False
+        game_world.remove_object(self.bat)
+        del self.bat
         return BehaviorTree.SUCCESS
     
     def change_state_Hit(self):
@@ -323,6 +324,7 @@ class Batter:
         a_s2_2=Action('방향에 따른 스프라이트 설정',self.set_sprite_option)
         a_s2_3=Action('조금씩 이동',self.move_slightly_to)
         a_s4_1=Action('스윙 시간 체크',self.set_waiting_time_and_time)
+        a_s4_1_1=Action('충돌 소환',self.create_bat)
         a_s4_2=Action('스윙 활동',self.do_hitting)
         a_s4_3=Action('스윙 쿨 체크',self.check_time)
         a_s4_4=Action('스윙 끝으로 셋팅',self.set_end_swing)
@@ -345,7 +347,7 @@ class Batter:
         self.SEQ_Run=Sequence('이동상태작동',a_s2_1,a_s2_2,a_s2_3)
 
         self.SEQ_is_Hit=Sequence('Hit 상태인지 확인',c_2_2,a_s4)
-        self.SEQ_do_Hitting=Sequence('Hitting 활동',a_s4_1,a_s4_2,a_s4_3,a_s4_4)
+        self.SEQ_do_Hitting=Sequence('Hitting 활동',a_s4_1,a_s4_1_1,a_s4_2,a_s4_4,a_s4_3)
 
         self.SEL_set_Idle=Selector('Idle 상태 활동',self.SEQ_is_Run,self.SEQ_Idle)
         self.bt_list.append(BehaviorTree(self.SEL_set_Idle))
