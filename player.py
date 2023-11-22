@@ -22,14 +22,11 @@ ACTION_PER_TIME=1/TIME_PER_ACTION
 FRAME_PER_ACTION=8
 
 PI=math.pi
-class Shoot:
-    @staticmethod
+class Ready_to_Shoot:
     def enter(player,e):
-        print('shoot')
+        print('R-shoot')
         player.get_bt()
         player.frame=0
-        player.is_setted=False
-        player.is_shoot=False
 
     @staticmethod
     def exit(player,e):
@@ -39,6 +36,30 @@ class Shoot:
     def do(player):
         pass
 
+    @staticmethod
+    def draw(player):
+        player_temp=[0,2,4,6,8,11,14,16]
+        player_size=[16,16,16,16,24,24,16,16,16]
+        dif=[0,0,0,0,0,0,4,8]
+        player.image.clip_composite_draw(player.sprite_p[0]+player_temp[int(player.frame)]*8,player.sprite_p[1]-24-dif[int(player.frame)]+160,player_size[int(player.frame)],24,0,'',player.x,player.y-dif[int(player.frame)],player.size[0]*(player_size[int(player.frame)])/24,player.size[1])
+
+class Shoot:
+    @staticmethod
+    def enter(player,e):
+        print('shoot')
+        player.get_bt()
+        player.frame=0
+        player.already_shoot=True
+
+    @staticmethod
+    def exit(player,e):
+        pass
+
+    @staticmethod
+    def do(player):
+        pass
+
+    @staticmethod
     def draw(player):
         player_temp=[0,2,4,6,8,11,14,16]
         player_size=[16,16,16,16,24,24,16,16,16]
@@ -136,6 +157,7 @@ class Player:
         self.size=[32,24]                           # player draw 사이즈
         self.base=0
         self.base_dir=1
+        self.already_shoot=False
         self.bt_list=[]
         self.build_behavior_tree()
         self.sprite_p=[208,160]
@@ -172,8 +194,10 @@ class Player:
             self.bt=self.bt_list[0]
         elif self.state_machine.cur_state==Run:
             self.bt=self.bt_list[1]
-        elif self.state_machine.cur_state==Shoot:
+        elif self.state_machine.cur_state==Ready_to_Shoot:
             self.bt=self.bt_list[2]
+        elif self.state_machine.cur_state==Shoot:
+            self.bt=self.bt_list[3]
 
     # Action :
     def change_state_Idle(self):
@@ -232,39 +256,49 @@ class Player:
         else:
             return BehaviorTree.FAIL
 
-    def is_shoot_setted(self):
-        if self.is_setted:
+    def is_not_already_shoot(self):
+        if not self.already_shoot:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.FAIL
-    
+        
     def set_waiting_time_and_time(self):
-        self.is_setted=True
+        print("set time")
         self.waiting_time=random.randint(10,50)/10
         self.set_time=get_time()
         return BehaviorTree.SUCCESS
     
     def waiting_shoot(self):
+        print('waitting',get_time()-self.set_time>self.waiting_time)
         if get_time()-self.set_time>self.waiting_time:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.RUNNING
 
     def do_shoot(self):
-        if not self.is_shoot:
-            self.frame=(self.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)
-            if self.frame>=8:
-                self.frame=7
-                self.is_shoot=True
-                self.fire_ball(random.randint(90,140),270)
-                return BehaviorTree.SUCCESS
-            return BehaviorTree.RUNNING
+        print("shoot")
+        self.frame=(self.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)
+        if self.frame>=8:
+            self.frame=7
+            self.is_shoot=True        
+            self.fire_ball(random.randint(90,140),270)
+            return BehaviorTree.SUCCESS
+        return BehaviorTree.RUNNING
+    
+    def change_state_Ready_to_Shoot(self):
+        self.state_machine.change_state(Ready_to_Shoot,('Change',0))
         return BehaviorTree.SUCCESS
     
+    def change_state_Shoot(self):
+        self.state_machine.change_state(Shoot,('Change',0))
+        return BehaviorTree.SUCCESS
+
     #define :
     def build_behavior_tree(self):
         a_s1=Action('상태를 Idle로 변경',self.change_state_Idle)
         a_s2=Action('상태를 Run으로 변경',self.change_state_Run)
+        a_s3=Action('상태를 R_Shoot으로 변경',self.change_state_Ready_to_Shoot)
+        a_s4=Action('상태를 Shoot으로 변경',self.change_state_Shoot)
         a_s2_1=Action('방향 설정',self.set_run_angle)
         a_s2_2=Action('방향에 따른 스프라이트 설정',self.set_sprite_option)
         a_s2_3=Action('조금씩 이동',self.move_slightly_to)
@@ -276,24 +310,29 @@ class Player:
         c1_2=Condition('도착하지 못하였는가',self.is_not_arrive)
         c_s1=Condition('Idle인가',self.is_state_Idle)
         c_s2=Condition('Run인가',self.is_state_Run)
-        c_s3_1=Condition('Shoot 이미 활동하였는가',self.is_shoot_setted)
+        c3_1=Condition('이미 던졌는가',self.is_not_already_shoot)
+
 
         self.SEQ_is_Idle=Sequence('Idle 상태인지 확인',c1_1,a_s1)
         self.SEQ_Idle=Sequence('기본상태작동',)
 
         self.SEQ_is_Run=Sequence('Run 상태인지 확인',c1_2,a_s2)
-        self.SEQ_Run=Sequence('Run 상태작동',a_s2_1,a_s2_2,a_s2_3)
+        self.SEQ_do_Run=Sequence('Run 상태 활동',a_s2_1,a_s2_2,a_s2_3)
+        self.SEL_Run=Selector('Run 상태 체크 후 활동',self.SEQ_is_Idle,self.SEQ_do_Run)
 
-        self.SEQ_do_Shoot=Sequence('Shoot 상태 활동',a_s3_1,a_s3_2,a_s3_3)
+        self.SEQ_set_already_Shoot=Sequence('R-Shoot 활동',c3_1,a_s4)
+
+        self.SEQ_do_Shoot=Sequence('Shoot 상태 활동',a_s3_1,a_s3_2,a_s3_2,a_s3_3,a_s3)
         self.SEQ_is_Shoot=Sequence('Shoot 상태인지 확인',)
-        self.SEL_Shoot=Selector('Shoot 상태 체크 후 활동',c_s3_1,self.SEQ_do_Shoot)
+        self.SEL_Shoot=Sequence('Shoot 상태 체크 후 활동',self.SEQ_do_Shoot)
 
         self.SEL_set_Idle=Selector('Idle 상태 활동',self.SEQ_is_Run,self.SEQ_Idle)
         self.bt_list.append(BehaviorTree(self.SEL_set_Idle))
-        self.SEL_set_Run=Selector('Run 상태 활동',self.SEQ_is_Idle,self.SEQ_Run)
+        self.SEL_set_Run=Selector('Run 상태 활동',self.SEQ_is_Idle,self.SEL_Run)
         self.bt_list.append(BehaviorTree(self.SEL_set_Run))
+        self.SEQ_is_already_Shoot=Sequence('던졌는지 체크 후, 변경',self.SEQ_set_already_Shoot)
+        self.bt_list.append(BehaviorTree(self.SEQ_is_already_Shoot))
         self.SEQ_set_Shoot=Sequence('Shoot 상태 활동',self.SEL_Shoot)
         self.bt_list.append(BehaviorTree(self.SEQ_set_Shoot))
-        self.SEL_check_state=Sequence('상태확인',self.SEL_set_Idle,self.SEL_set_Run)
 
         self.bt=BehaviorTree(self.SEL_set_Idle)

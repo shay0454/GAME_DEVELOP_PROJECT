@@ -347,13 +347,13 @@ class Batter:
         self.SEQ_is_Hit=Sequence('Hit 상태인지 확인',c_2_2,a_s4)
         self.SEQ_do_Hitting=Sequence('Hitting 활동',a_s4_1,a_s4_2,a_s4_3,a_s4_4)
 
-        self.SEQ_set_Idle=Sequence('Idle 상태 활동',self.SEQ_Idle,self.SEQ_is_Run)
-        self.bt_list.append(BehaviorTree(self.SEQ_set_Idle))
-        self.SEQ_set_Run=Sequence('Run 상태 활동',self.SEQ_Run,self.SEQ_is_Idle)
-        self.bt_list.append(BehaviorTree(self.SEQ_set_Run))
+        self.SEL_set_Idle=Selector('Idle 상태 활동',self.SEQ_is_Run,self.SEQ_Idle)
+        self.bt_list.append(BehaviorTree(self.SEL_set_Idle))
+        self.SEL_set_Run=Selector('Run 상태 활동',self.SEQ_is_Idle,self.SEQ_Run)
+        self.bt_list.append(BehaviorTree(self.SEL_set_Run))
         self.SEQ_set_Hit=Sequence('스윙 준비 상태 활동',)
         self.bt_list.append(BehaviorTree(self.SEQ_set_Hit))
         self.SEL_set_Hitting=Sequence('스윙 중 상태 활동',self.SEQ_do_Hitting,self.SEQ_is_Hit)
         self.bt_list.append(BehaviorTree(self.SEL_set_Hitting))
 
-        self.bt=BehaviorTree(self.SEQ_set_Idle)    
+        self.bt=BehaviorTree(self.SEL_set_Idle)    
