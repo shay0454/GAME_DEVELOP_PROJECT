@@ -83,7 +83,7 @@ class Hit:
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw(0,488-72,16,32,0,'',player.x-24,player.y,int(4/3*player.size[0]*(16/24)),player.size[1])
+        player.image.clip_composite_draw(0,488-72,16,32,0,'',player.x-24,player.y,player.size[0],int(4/3*player.size[1]))
         pass
 
 class Hitting: #416 488
@@ -108,7 +108,7 @@ class Hitting: #416 488
         hitter_frame_left=[0,2,5,8,12,15] #draw용 좌측 벽
         hitter_size=[16,24,24,24,24,24] #hitter 이미지 사이즈
         relocate_hitter_frame_left=[24,24,0,0,0,24] #다시 맞추기 용
-        player.image.clip_composite_draw(hitter_frame_left[int(player.frame)]*8,488-72,hitter_size[int(player.frame)],32,0,'',player.x-relocate_hitter_frame_left[int(player.frame)],player.y,int(4/3*player.size[0]*(hitter_size[int(player.frame)])/24),player.size[1])
+        player.image.clip_composite_draw(hitter_frame_left[int(player.frame)]*8,488-72,hitter_size[int(player.frame)],32,0,'',player.x-relocate_hitter_frame_left[int(player.frame)],player.y,int(player.size[0]*(hitter_size[int(player.frame)])/16),int(4/3*player.size[1]))
         pass
 
 

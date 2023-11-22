@@ -41,7 +41,7 @@ class Ready_to_Shoot:
         player_temp=[0,2,4,6,8,11,14,16]
         player_size=[16,16,16,16,24,24,16,16,16]
         dif=[0,0,0,0,0,0,4,8]
-        player.image.clip_composite_draw(player.sprite_p[0]+player_temp[int(player.frame)]*8,player.sprite_p[1]-24-dif[int(player.frame)]+160,player_size[int(player.frame)],24,0,'',player.x,player.y-dif[int(player.frame)],player.size[0]*(player_size[int(player.frame)])/24,player.size[1])
+        player.image.clip_composite_draw(player.sprite_p[0]+player_temp[int(player.frame)]*8,player.sprite_p[1]-24-dif[int(player.frame)]+160,player_size[int(player.frame)],24,0,'',player.x,player.y-dif[int(player.frame)],player.size[0]*(player_size[int(player.frame)])/16,player.size[1])
 
 class Shoot:
     @staticmethod
@@ -64,7 +64,7 @@ class Shoot:
         player_temp=[0,2,4,6,8,11,14,16]
         player_size=[16,16,16,16,24,24,16,16,16]
         dif=[0,0,0,0,0,0,4,8]
-        player.image.clip_composite_draw(player.sprite_p[0]+player_temp[int(player.frame)]*8,player.sprite_p[1]-24-dif[int(player.frame)]+160,player_size[int(player.frame)],24,0,'',player.x,player.y-dif[int(player.frame)],player.size[0]*(player_size[int(player.frame)])/24,player.size[1])
+        player.image.clip_composite_draw(player.sprite_p[0]+player_temp[int(player.frame)]*8,player.sprite_p[1]-24-dif[int(player.frame)]+160,player_size[int(player.frame)],24,0,'',player.x,player.y-dif[int(player.frame)],player.size[0]*(player_size[int(player.frame)])/16,player.size[1])
 
 
 # Run : 이동 상태
