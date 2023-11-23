@@ -11,7 +11,7 @@ def is_swing(player,e):
 def is_click(player,e):
     return e[0]=='INPUT' and e[1].type==SDL_MOUSEBUTTONDOWN and player.x>=e[1].x-player.size[0]/2 and player.x<=e[1].x+player.size[0]/2 and player.y>=600-e[1].y-1-player.size[0]/2 and player.y<=600-e[1].y-1+player.size[0]/2
 
-PIXEL_PER_METER=5.9 #미터 당 픽셀 : 5.9 pixel
+PIXEL_PER_METER=8.16
 RUN_SPEED_KMPH=24  #24km/h
 RUN_SPEED_MPM=(RUN_SPEED_KMPH*1000/60)
 RUN_SPEED_MPS=(RUN_SPEED_MPM/60)
@@ -263,25 +263,22 @@ class Player:
             return BehaviorTree.FAIL
         
     def set_waiting_time_and_time(self):
-        print("set time")
         self.waiting_time=random.randint(10,50)/10
         self.set_time=get_time()
         return BehaviorTree.SUCCESS
     
     def waiting_shoot(self):
-        print('waitting',get_time()-self.set_time>self.waiting_time)
         if get_time()-self.set_time>self.waiting_time:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.RUNNING
 
     def do_shoot(self):
-        print("shoot")
         self.frame=(self.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)
         if self.frame>=8:
             self.frame=7
             self.is_shoot=True        
-            self.fire_ball(random.randint(90,140),270)
+            self.fire_ball(random.randint(120,170),PI*3/2)
             return BehaviorTree.SUCCESS
         return BehaviorTree.RUNNING
     

@@ -36,7 +36,7 @@ def is_click(batter,e):
         return True
     return False
 
-PIXEL_PER_METER=5.9
+PIXEL_PER_METER=8.16
 RUN_SPEED_KMPH=24
 RUN_SPEED_MPM=(RUN_SPEED_KMPH*1000/60)
 RUN_SPEED_MPS=(RUN_SPEED_MPM/60)
