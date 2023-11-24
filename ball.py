@@ -17,6 +17,11 @@ PI=math.pi
 TIME_PER_ACTION=1
 ACTION_PER_TIME=1/TIME_PER_ACTION
 FRAME_PER_ACTION=200
+
+ONE_KMPH=1
+ONE_MPM=(ONE_KMPH*1000/60)
+ONE_MPS=(ONE_MPM/60)
+ONE_PPS=(ONE_MPS*PIXEL_PER_METER)
 class Stopped:
     @staticmethod
     def enter(ball):
@@ -100,36 +105,27 @@ class StateMachine:
 
 
 class Ball:
-    def __init__(self,x,y,shoot_v,angle):
+    def __init__(self,x,y,shoot_v,angle,distance):
         self.image=load_image('ball.png')
+        self.shadow_image=load_image('ball_shadow.png')
         self.state_machine=StateMachine(self)
-        self.pixel_v=shoot_v*self.set_v_1kmph()
+        self.v=shoot_v
+        self.distance=distance
         self.shoot_angle=angle
         self.x,self.y=x,y
-        self.a=-4*8  # 1m/s^2*PIXEL_PER_METER=4.08 pixel
-        self.height_a=-80
-        self.height_v=30
-        self.height=1.5*8.16 #meter   1.5*PIXEL_PER_METER
+        self.destination=[self.x+self.distance*math.cos(self.shoot_angle),self.y+self.distance*math.sin(self.shoot_angle)]
+        self.allow_collision_point=[self.destination[0]*0.8,self.destination[1]*0.8]
+        self.on_ground_point=[self.destination[0]*0.9,self.destination[1]*0.9]
         self.state_machine.start()
 
     def update(self):
-        self.state_machine.update()
-        if self.height>0:
-            self.height+=self.height_a*game_framework.frame_time
-        else:
-            self.heihgt=0
-            self.a=-4*32
-        self.height+=game_framework.frame_time*self.height_v
-        if self.pixel_v>0:
-            self.pixel_v+=self.a*game_framework.frame_time
-        else:
-            self.pixel_v=0
-        self.x+=game_framework.frame_time*self.pixel_v*math.cos(self.shoot_angle)
-        self.y+=game_framework.frame_time*self.pixel_v*math.sin(self.shoot_angle)
+        self.x+=game_framework.frame_time*ONE_PPS*self.v*math.cos(self.shoot_angle)
+        self.y+=game_framework.frame_time*ONE_PPS*self.v*math.sin(self.shoot_angle)
         
 
     
     def draw(self):
+        self.shadow_image.clip_draw(0,0,68,68,self.x,self.y,68,5)
         self.image.clip_draw(0,0,68,68,self.x,self.y,4,4)
         draw_rectangle(*self.get_bb())
 
@@ -138,15 +134,9 @@ class Ball:
     
     def handle_collision(self,group,other):
         if group=='ball:bat':
-            self.pixel_v=160*self.set_v_1kmph()
+            self.v=random.randint(140,170)
+            self.destination=[self.x+self.distance*math.cos(self.shoot_angle),self.y+self.distance*math.sin(self.shoot_angle)]
             self.shoot_angle=play_mode.control.players[-1].bat.angle+PI/2+PI*1/12*random.random()
 
-
-    def set_v_1kmph(self):
-        run_speed_KMPH=1
-        run_speed_MPM=(run_speed_KMPH*1000/60)
-        run_speed_MPS=(run_speed_MPM/60)
-        run_speed_PPS=(run_speed_MPS*PIXEL_PER_METER)
-        return run_speed_PPS
 
     
