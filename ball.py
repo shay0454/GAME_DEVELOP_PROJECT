@@ -138,7 +138,7 @@ class Ball:
     def draw(self):
         self.shadow_image.clip_draw(0,0,68,68,self.x,self.y,4,2)
         if self.hit_tf:
-            self.image.clip_draw(0,0,68,68,self.x,self.y+abs(self.static_v//2-abs((self.under_zero(self.v-20))//4-self.static_v//2))+1,4,4)
+            self.image.clip_draw(0,0,68,68,self.x,self.y+abs(self.static_v//2-abs((self.under_zero(self.v-int(self.static_v*0.3)))//4-self.static_v//2))+1,4,4)
         else:
             self.image.clip_draw(0,0,68,68,self.x,self.y,4,4)
         draw_rectangle(*self.get_bb())
