@@ -1,4 +1,5 @@
 from pico2d import *
+import play_mode
 class Field: #1024 1024
     
     def __init__(self):
@@ -9,4 +10,4 @@ class Field: #1024 1024
         pass
     
     def draw(self):
-        self.image.clip_draw(0,0,self.size[0],self.size[1],400,450+50*10*(1.79-1)-30,int(self.size[0]*1.8),int(self.size[1]*1.8))
+        self.image.clip_draw(0,0,self.size[0],self.size[1],400,450+50*10*(1.8-1.01)-30,int(self.size[0]*1.8),int(self.size[1]*1.8))
