@@ -6,7 +6,7 @@ import game_framework
 
 import os
 os.chdir(os.path.dirname(__file__))
-
-open_canvas()
+    
+open_canvas(800,800)
 game_framework.run(start_mode)
 close_canvas()
