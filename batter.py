@@ -4,6 +4,7 @@ rad=math.pi/180
 from sdl2 import SDLK_DOWN, SDLK_SPACE
 import game_framework
 import game_world
+import play_mode
 from ball import Ball
 from bat import Bat
 import random
@@ -25,13 +26,9 @@ def is_arrive(batter,e):
 
 def is_click(batter,e):
     if e[0]=='INPUT' and e[1]!=None and e[1].type==SDL_MOUSEBUTTONDOWN and batter.x>=e[1].x-batter.size[0]/2 and batter.x<=e[1].x+batter.size[0]/2 and batter.y>=600-e[1].y-1-batter.size[0]/2 and batter.y<=600-e[1].y-1+batter.size[0]/2:
-        batter.destination,batter.pre_base=batter.pre_base,batter.destination
-        if batter.base_dir==1:
-            batter.base-=1
-            batter.base_dir=-1
-        else:
-            batter.base+=1
-            batter.base_dir=1
+        batter.base_dir*=-1
+        batter.target_base+=batter.base_dir
+        batter.destination=play_mode.control.base.base_locations['base'+str(batter.target_base)]
         print('click')
         return True
     return False
@@ -49,6 +46,7 @@ PI=math.pi
 class Run:
     @staticmethod
     def enter(player,e):
+        print('Run')
         player.get_bt()
 
 
@@ -63,7 +61,7 @@ class Run:
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw(int(player.frame)*16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.sprite_option[1]*12+48,16,20,0,player.sprite_option[0],player.x,player.y,player.size[0],player.size[1])
+        player.image.clip_composite_draw(int(player.frame)*16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.sprite_option[1]*12+48,16,19,0,player.sprite_option[0],player.x,player.y,player.size[0],player.size[1])
 
 class Hit:
     @staticmethod
@@ -139,7 +137,7 @@ class StateMachine:
         self.cur_state=Idle
         self.state_table={
             Idle : {},
-            Run : {},
+            Run : {is_click:Run},
             Hit:{is_swing:Hitting},
             Hitting:{}
         }
@@ -178,14 +176,17 @@ class Batter:
         self.destination=[self.x,self.y]            # 도착지점
         self.size=[32,24]                           # batter draw 사이즈
         self.swing=False                            # 스윙 유무
+        self.check_base=False
+        self.in_base=False
         self.hit_delay=0.8
-        self.base=0
-        self.base_dir=0
+        self.target_base=1
+        self.base_dir=1
         self.bt_list=[]
         self.build_behavior_tree()
         self.sprite_p=[0,320]
         self.state_machine=StateMachine(self)       # 상태머신 지정
         self.state_machine.start()                  # 상태머신 시작
+        game_world.add_collision_pair('base:player',None,self)
 
     def handle_event(self,event):
         self.state_machine.handle_event(('INPUT',event))
@@ -196,9 +197,19 @@ class Batter:
 
     def draw(self):
         self.state_machine.draw()
+        draw_rectangle(self.x-self.size[0]//2,self.y-self.size[1]//2,self.x+self.size[0]//2,self.y-self.size[1]+6)
 
     def goto(self,destination): #지점 이동용 명령
-        self.destination=destination    
+        self.destination=[destination[0],destination[1]+self.size[1]//2]    
+
+    def get_bb(self):
+        return self.x-self.size[0]//2,self.y-self.size[1]//2,self.x+self.size[0]//2,self.y-self.size[1]+6
+
+    def handle_collision(self,group,other):
+        if group == 'base:player':
+            self.in_base=True
+            self.check_base=True
+            pass
 
     def stop(self): # 익수들이 공을 잡은 후에 쓸 명령
         self.destination=[self.x,self.y]

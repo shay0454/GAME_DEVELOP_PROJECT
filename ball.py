@@ -154,6 +154,7 @@ class Ball:
     def handle_collision(self,group,other):
         if group=='ball:bat':
             self.hit_tf=True
+            play_mode.control.state_machine.change_state(play_mode.control.state_list['Hitted'])
             self.v=random.randint(140,170)
             self.destination=[self.x+self.distance*math.cos(self.shoot_angle),self.y+self.distance*math.sin(self.shoot_angle)]
             self.shoot_angle=play_mode.control.players[-1].bat.angle+PI/2+PI*1/12*random.random()

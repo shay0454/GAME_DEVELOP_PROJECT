@@ -86,7 +86,9 @@ class Hitted:
         pass
 
     @staticmethod
-    def do():
+    def do(control):
+        control.base.players_run()
+        
         pass
 
 class Catch:
@@ -103,6 +105,7 @@ class Field_statement:
         self.state_table={
             Ready:{},
             Start:{is_hit:Hitted,is_not_hit:Start,is_end:End},
+            Hitted:{},
             Catch:{is_out:Catch,is_out:Catch},
             End:{}
         }
@@ -146,14 +149,22 @@ class Field_control:
         self.fielders=[]                                                                            # fielders
         self.basemen=[]                                                                             # basemen
         self.f_objects=[self.players,self.fielders,self.basemen]                                    # f_objects
+        self.state_list={'Ready':Ready,'Start':Start,'Hitted':Hitted,'Catch':Catch}
+        self.player_state_list={'Idle':Idle,'Run':Run}
+        self.base=Base()
+        game_world.add_objects(self.base.bases)
         self.f_object_init()
         self.state_machine.cur_state.enter(self)  
                   
 
     def update(self):
         self.state_machine.update()
+        self.base.update()
         pass
     
+    def draw(self):
+        self.base.draw()
+
     def get_next_base(self,player):                                                         # 변형 예정
         if(player.destination==self.field_set_info[player.base]):
             player.base+=1
