@@ -1,39 +1,20 @@
 import pico2d
 import game_world
 from player import *
-from batter import *
-
+from offensive import *
+from base import *
 # 모든 player가 도착했는지 확인용
 def is_all_arrive(control):
-    for x in range(len(control.f_objects)):
-        for i in range(len(control.f_objects[x])):
-            if not is_arrive(control.f_objects[x][i],('CHECK',0)):
-                control.tf_all_arrive=False
+    for object_list in control.players:
+        for player in object_list:
+            if len(object_list)!=0 and not is_arrive(player,('CHECK',0)):
                 return False
-    control.tf_all_arrive=True
     return True
 
-def is_end(players):
-    pass
-
-def is_catched(players):
-    pass
-
-def is_hit(control):
-    pass
-
-def is_not_hit(control):
-    pass
-
-def is_out(control):
-    pass
 class Ready:
     @staticmethod
     def enter(control):
-        Ready.picker_location_init(control)
-        #Ready.fielders_location_init(control)
-        #Ready.basemen_location_init(control)
-        Ready.batter_location_init(control) 
+        Ready.players_destination_init(control)
 
     @staticmethod
     def exit(control):
@@ -42,30 +23,58 @@ class Ready:
     @staticmethod
     def do(control):
         if is_all_arrive(control):
-            control.state_machine.change_state(Start)
-            control.fielders[0].state_machine.change_state(Shoot,('CHANGE',0))
-            print(control.fielders[0].state_machine.cur_state)
-            control.players[0].state_machine.change_state(Hit)
-        pass
+            Ready.set_Start(control)
     
-    def picker_location_init(control):
-        control.fielders[0].goto(control.fielder_point[control.fielder_info[0]])
+# Start 전에 셋팅
+    def set_Start(control):
+        control.state_machine.change_state(Start)
+        print(control.fielders[0].state_machine.cur_state)
+        Ready.set_picker_Shoot(control)
+        Ready.set_batter_Hit(control)
 
-    def fielders_location_init(control):                                                        # fielders 위치 초기화용
-            for i in range(1,len(control.fielders)):
-                control.fielders[i].goto(control.fielder_point[control.fielder_info[i]])
+# 모든 player 도착지 초기화
+    def players_destination_init(control):
+        Ready.picker_destination_init(control,control.picker[0])
+        Ready.fielders_destination_init(control,control.fielders)
+        Ready.basemen_destination_init(control,control.basemen)
+        Ready.batter_destination_init(control,control.batter[0]) 
+     
+# picker 도착지 초기화
+    def picker_destination_init(control,picker):
+        picker.goto(control.picker_location)
 
-    def basemen_location_init(control):                                                          # basemen 위치 초기화용
-            for i in range(len(control.basemen)):
-                control.basemen[i].goto(control.base_point[i])
+# fielders 도착지 초기화
+    def fielders_destination_init(control,fielders):
+        for fielder in fielders:
+            fielder.goto(control.fielder_locations[fielders.index(fielder)-1])
 
-    def batter_location_init(control):
-        control.players[0].goto([400,130])
+# basemen 도착지 초기화
+    def basemen_destination_init(control,basemen):
+        for baseman in control.basemen:
+            baseman.goto(control.base_locations[basemen.index(baseman)])
+        Ready.catcher_destination_init(control,control.basemen[0])
+
+# catcher 도착지 초기화
+    def catcher_destination_init(control,catcher):
+        catcher.goto(control.catcher_location)
+
+# batter 도착지 초기화
+    def batter_destination_init(control,batter):
+        batter.goto(control.batter_location)
+
+# picker 상태를 Shoot으로 변경
+    def set_picker_Shoot(control):
+        control.picker[0].state_machine.change_state(Shoot,('CHANGE',0))
+
+# batter 상태를 Hit으로 변경
+    def set_batter_Hit(control):
+        control.batter[0].state_machine.change_state(Hit)
 
 class Start:
     @staticmethod
     def enter(control):
         print('start')
+        control.basemen[0].state_machine.change_state(The_Catcher,('CHANGE',0))
 
     @staticmethod
     def exit(control):
@@ -76,18 +85,21 @@ class Start:
         pass
 
 class Hitted:
-    
     @staticmethod
-    def enter():
+    def enter(control):
+        print('control_hit')
+        control.batter.goto([560+4,240])
+        control.runner.append(control.batter)
+        control.batter=None
         pass
 
     @staticmethod
-    def exit():
+    def exit(control):
         pass
 
     @staticmethod
     def do(control):
-        control.base.players_run()
+        control.base.runner_run()
         
         pass
 
@@ -104,9 +116,9 @@ class Field_statement:
         self.cur_state=Ready
         self.state_table={
             Ready:{},
-            Start:{is_hit:Hitted,is_not_hit:Start,is_end:End},
+            Start:{},
             Hitted:{},
-            Catch:{is_out:Catch,is_out:Catch},
+            Catch:{},
             End:{}
         }
         
@@ -137,49 +149,55 @@ class Field_control:
             
     def __init__(self):
         self.state_machine=Field_statement(self)
-        self.field =[None,None,None,None,None]                                                      # 홈, 1루, 2루, 3루, 홈
-        self.strike,self.out=0,0                                                                    # strike, out
-        self.base_point=[[400,90],[560+4,240],[400,400+12],[240-4,240],[400,90]]                    # base_point
-        self.fielder_point={'shoot':[400,230],'left':[250,240],'mid':[400,330],'right':[550,240]}   # fielders의 위치 dict
-        self.fielder_info={0:'shoot',1:'left',2:'mid',3:'right'}                                    # 제거 예정
-        self.p={'players':0,'fielders':1,'basemen':2}                                               # 매칭용
-        self.tf_all_arrive=False
+        self.base=Base()
+        self.base_locations=[base.location for base in self.base.bases]                    # base_locations
+        self.strike,self.out=0,0      
+        self.base_point=[[400,90],[560+4,240],[400,400+12],[240-4,240]]                    # base_point
+        self.fielder_locations=[[250,240],[400,330],[550,240]]                                                                 # strike, out
+        self.catcher_location=[400,30]
+        self.picker_location=[400,230]
+        self.batter_location=[400-25,70]
+        self.fielder_info={0:'left',1:'mid',2:'right'}                                    # 제거 예정
         self.tf_hit=False
-        self.players=[]                                                                             # 변형 예정
+        self.batter=[]
+        self.picker=[]
+        self.runner=[]                                                                             # 변형 예정
         self.fielders=[]                                                                            # fielders
         self.basemen=[]                                                                             # basemen
-        self.f_objects=[self.players,self.fielders,self.basemen]                                    # f_objects
+        self.players=[self.batter,self.runner,self.picker,self.basemen,self.fielders]            # players
         self.state_list={'Ready':Ready,'Start':Start,'Hitted':Hitted,'Catch':Catch}
         self.player_state_list={'Idle':Idle,'Run':Run}
-        self.base=Base()
-        game_world.add_objects(self.base.bases)
-        self.f_object_init()
+        self.players_init()
         self.state_machine.cur_state.enter(self)  
                   
-
     def update(self):
         self.state_machine.update()
         self.base.update()
-        pass
     
     def draw(self):
         self.base.draw()
 
-    def get_next_base(self,player):                                                         # 변형 예정
-        if(player.destination==self.field_set_info[player.base]):
-            player.base+=1
-            if 1:
-                return player.destination
-            return self.field_set_info[player.base]
-        return player.destination
+    def Skip_Ready(self):
+        
+        pass
+
+    def tp_picker_destination_init(control):
+        control.fielders[0].goto(control.fielder_locations[control.fielder_info[0]])
 
     def handle_events(self,event):
-        if event.type==SDL_KEYDOWN and event.key==SDLK_SPACE and self.players[0]!=None and self.players[0].state_machine.cur_state==Hit:
-            print('space')
-            self.players[0].state_machine.handle_event(('INPUT',event))
+        if event.type==SDL_KEYDOWN and event.key==SDLK_SPACE:
+            if self.state_machine.cur_state==Start:
+                print('space')
+                self.batter[0].state_machine.handle_event(('INPUT',event))
+            elif self.state_machine.cur_state==Ready:
+                self.Skip_Ready()
+        if event.type==SDL_MOUSEBUTTONDOWN:
+            for player in self.runner:
+                player.state_machine.handle_event(('INPUT',event))
+
 
     def fielders_init(self):                                                                 # fielder 객체들 초기화용
-        for i in range(1,4):
+        for i in range(4):
             player=Player()
             self.fielders.append(player)
             game_world.add_object(player,2)
@@ -192,15 +210,15 @@ class Field_control:
 
     def picker_init(self):
         picker=Player()
-        self.fielders.append(picker)
-        game_world.add_object(picker,2)
+        self.picker.append(picker)
+        game_world.add_object(self.picker[0],2)
 
     def batter_init(self):
         batter=Batter()
-        self.f_objects[self.p['players']].append(batter)
-        game_world.add_object(batter,2)
+        self.batter.append(batter)
+        game_world.add_object(self.batter[0],2)
 
-    def f_object_init(self):
+    def players_init(self):
         self.fielders_init()
         self.basemen_init()
         self.picker_init()
