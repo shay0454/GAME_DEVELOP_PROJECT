@@ -9,26 +9,26 @@ from ball import Ball
 from bat import Bat
 import random
 from behavior_tree import BehaviorTree, Action, Sequence, Condition, Selector
-def is_swing(batter,e):
+def is_swing(player,e):
     return e[0]=='INPUT'and e[1].type==SDL_KEYDOWN and e[1].key==SDLK_SPACE
 
-def is_hit(batter,e):
+def is_hit(player,e):
     return e[0]=='CHECK'
 
-def is_not_arrive(batter,e):
-    return e[0]=='CHECK' and batter.destination!=[batter.x,batter.y]
+def is_not_arrive(player,e):
+    return e[0]=='CHECK' and player.destination!=[player.location[0],player.location[1]]
 
-def is_not_hit(batter,e):
-    return not is_hit(batter,e)
+def is_not_hit(player,e):
+    return not is_hit(player,e)
 
-def is_arrive(batter,e):
-    return e[0]=='CHECK' and batter.destination==[batter.x,batter.y]
+def is_arrive(player,e):
+    return e[0]=='CHECK' and player.destination==[player.location[0],player.location[1]]
 
-def is_click(batter,e):
-    if e[0]=='INPUT' and e[1]!=None and e[1].type==SDL_MOUSEBUTTONDOWN and batter.x>=e[1].x-batter.size[0]/2 and batter.x<=e[1].x+batter.size[0]/2 and batter.y>=600-e[1].y-1-batter.size[0]/2 and batter.y<=600-e[1].y-1+batter.size[0]/2:
-        batter.base_dir*=-1
-        batter.target_base+=batter.base_dir
-        batter.destination=play_mode.control.base.base_locations['base'+str(batter.target_base)]
+def is_click(player,e):
+    if e[0]=='INPUT' and e[1]!=None and e[1].type==SDL_MOUSEBUTTONDOWN and player.location[0]>=e[1].location[0]-player.size[0]/2 and player.location[0]<=e[1].location[0]+player.size[0]/2 and player.location[1]>=600-e[1].location[1]-1-player.size[0]/2 and player.location[1]<=600-e[1].location[1]-1+player.size[0]/2:
+        player.base_dir*=-1
+        player.target_base+=player.base_dir
+        player.destination=play_mode.control.base.base_locations['base'+str(player.target_base)]
         print('click')
         return True
     return False
@@ -61,7 +61,7 @@ class Run:
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw(int(player.frame)*16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.sprite_option[1]*12+48,16,19,0,player.sprite_option[0],player.x,player.y,player.size[0],player.size[1])
+        player.image.clip_composite_draw(int(player.frame)*16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.sprite_option[1]*12+48,16,19,0,player.sprite_option[0],player.location[0],player.location[1],player.size[0],player.size[1])
 
 class Hit:
     @staticmethod
@@ -81,7 +81,7 @@ class Hit:
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw(0,488-72,16,32,0,'',player.x,player.y,player.size[0],int(4/3*player.size[1]))
+        player.image.clip_composite_draw(0,488-72,16,32,0,'',player.location[0],player.location[1],player.size[0],int(4/3*player.size[1]))
         pass
 
 class Hitting: #416 488
@@ -94,6 +94,7 @@ class Hitting: #416 488
     
     @staticmethod
     def exit(player,e):
+        del player.bat
         pass
 
     @staticmethod
@@ -106,34 +107,34 @@ class Hitting: #416 488
         hitter_frame_left=[0,2,5,8,12,15] #draw용 좌측 벽
         hitter_size=[16,24,24,24,24,24] #hitter 이미지 사이즈
         relocate_hitter_frame_left=[0,0,-24,-24,-24,0] #다시 맞추기 용
-        player.image.clip_composite_draw(hitter_frame_left[int(player.frame)]*8,488-72,hitter_size[int(player.frame)],32,0,'',player.x-relocate_hitter_frame_left[int(player.frame)],player.y,int(player.size[0]*(hitter_size[int(player.frame)])/16),int(4/3*player.size[1]))
+        player.image.clip_composite_draw(hitter_frame_left[int(player.frame)]*8,488-72,hitter_size[int(player.frame)],32,0,'',player.location[0]-relocate_hitter_frame_left[int(player.frame)],player.location[1],int(player.size[0]*(hitter_size[int(player.frame)])/16),int(4/3*player.size[1]))
         pass
 
 
 class Idle:
     @staticmethod
-    def enter(batter,e):
+    def enter(player,e):
         print('idle')
-        batter.get_bt()
-        batter.frame=0
+        player.get_bt()
+        player.frame=0
 
     @staticmethod
-    def exit(batter,e):
+    def exit(player,e):
         pass
     
     @staticmethod
-    def do(batter):
+    def do(player):
         pass
 
     @staticmethod
-    def draw(batter):
-        batter.image.clip_composite_draw(batter.sprite_p[0],batter.sprite_p[1]+24,16,20,0,batter.sprite_option[0],batter.x,batter.y,batter.size[0],batter.size[1])
+    def draw(player):
+        player.image.clip_composite_draw(player.sprite_p[0],player.sprite_p[1]+24,16,20,0,player.sprite_option[0],player.location[0],player.location[1],player.size[0],player.size[1])
         pass
     
 
 class StateMachine:
-    def __init__(self,batter):
-        self.batter=batter
+    def __init__(self,player):
+        self.player=player
         self.cur_state=Idle
         self.state_table={
             Idle : {},
@@ -143,25 +144,25 @@ class StateMachine:
         }
 
     def start(self):
-        self.cur_state.enter(self.batter,('NONE',0))
+        self.cur_state.enter(self.player,('NONE',0))
 
     def update(self):
-        self.cur_state.do(self.batter)
+        self.cur_state.do(self.player)
 
     def draw(self):
-        self.cur_state.draw(self.batter)
+        self.cur_state.draw(self.player)
 
     def handle_event(self,e):
         for ckeck_event, next_state in self.state_table[self.cur_state].items():
-            if ckeck_event(self.batter,e):
+            if ckeck_event(self.player,e):
                 self.change_state(next_state,e)
                 return True
         return False
     
     def change_state(self,next_state,e=None):
-        self.cur_state.exit(self.batter,e)
+        self.cur_state.exit(self.player,e)
         self.cur_state=next_state
-        self.cur_state.enter(self.batter,e)       
+        self.cur_state.enter(self.player,e)       
 
 class Batter:
 
@@ -170,13 +171,14 @@ class Batter:
     def __init__(self,x=400,y=0):
         self.image=load_image('Baseball_Players.png')
 
-        self.x,self.y=x,y                           # 기본 좌표
+        self.location=[x,y]                         # 기본 좌표
         self.frame=0                                # 프레임
         self.sprite_option=['',1]                   # 'h': 왼쪽, '': 오른쪽, -1 : 다운, 1 : 업
-        self.destination=[self.x,self.y]            # 도착지점
-        self.size=[32,24]                           # batter draw 사이즈
+        self.destination=[self.location[0],self.location[1]]            # 도착지점
+        self.size=[32,24]                           # player draw 사이즈
         self.swing=False                            # 스윙 유무
         self.check_base=False
+        self.bat=None
         self.in_base=False
         self.hit_delay=0.8
         self.target_base=1
@@ -197,13 +199,13 @@ class Batter:
 
     def draw(self):
         self.state_machine.draw()
-        draw_rectangle(self.x-self.size[0]//2,self.y-self.size[1]//2,self.x+self.size[0]//2,self.y-self.size[1]+6)
+        draw_rectangle(*self.get_bb())
 
     def goto(self,destination): #지점 이동용 명령
         self.destination=[destination[0],destination[1]+self.size[1]//2]    
 
     def get_bb(self):
-        return self.x-self.size[0]//2,self.y-self.size[1]//2,self.x+self.size[0]//2,self.y-self.size[1]+6
+        return self.location[0]-self.size[0]//2,self.location[1]-self.size[1]//2-2,self.location[0]+self.size[0]//2,self.location[1]-self.size[1]//2+2
 
     def handle_collision(self,group,other):
         if group == 'base:player':
@@ -212,7 +214,7 @@ class Batter:
             pass
 
     def stop(self): # 익수들이 공을 잡은 후에 쓸 명령
-        self.destination=[self.x,self.y]
+        self.destination=[self.location[0],self.location[1]]
 
     def get_bt(self):
         if self.state_machine.cur_state==Idle:
@@ -234,19 +236,19 @@ class Batter:
         return BehaviorTree.SUCCESS
 
     def set_run_angle(self):
-            self.rad=(math.atan2((self.destination[1]-self.y),(self.destination[0]-self.x)))%(2*PI)
+            self.rad=(math.atan2((self.destination[1]-self.location[1]),(self.destination[0]-self.location[0])))%(2*PI)
             return BehaviorTree.SUCCESS
 
     def is_less_than(self):
-        return (self.destination[0]-self.x)**2+(self.destination[1]-self.y)**2<=(game_framework.frame_time*RUN_SPEED_PPS)**2
+        return (self.destination[0]-self.location[0])**2+(self.destination[1]-self.location[1])**2<=(game_framework.frame_time*RUN_SPEED_PPS)**2
     
     def move_slightly_to(self):
         if not self.is_less_than():
-            self.x+=(game_framework.frame_time*RUN_SPEED_PPS)*math.cos(self.rad)
-            self.y+=(game_framework.frame_time*RUN_SPEED_PPS)*math.sin(self.rad)
+            self.location[0]+=(game_framework.frame_time*RUN_SPEED_PPS)*math.cos(self.rad)
+            self.location[1]+=(game_framework.frame_time*RUN_SPEED_PPS)*math.sin(self.rad)
             return BehaviorTree.RUNNING
         else:
-            self.x,self.y=self.destination[0],self.destination[1]
+            self.location[0],self.location[1]=self.destination[0],self.destination[1]
             return BehaviorTree.SUCCESS
 
     def set_sprite_option(self):
@@ -258,13 +260,13 @@ class Batter:
 
     #Condition : 
     def is_arrive(self):
-        if self.destination==[self.x,self.y]:
+        if self.destination==[self.location[0],self.location[1]]:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.FAIL
         
     def is_not_arrive(self):
-        if self.destination!=[self.x,self.y]:
+        if self.destination!=[self.location[0],self.location[1]]:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.FAIL
@@ -295,8 +297,7 @@ class Batter:
             return BehaviorTree.FAIL
 
     def create_bat(self):
-        self.bat=Bat(self.x,self.y)
-        game_world.add_object(self.bat,2)
+        self.bat=Bat(self.location[0],self.location[1])
         pass
 
     def do_hitting(self):
@@ -318,8 +319,6 @@ class Batter:
         
     def set_end_swing(self):
         self.swing=False
-        game_world.remove_object(self.bat)
-        del self.bat
         return BehaviorTree.SUCCESS
     
     def change_state_Hit(self):
