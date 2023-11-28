@@ -3,6 +3,7 @@ import game_world
 from player import *
 from offensive import *
 from base import *
+from field_control_function import *
 # 모든 player가 도착했는지 확인용
 def is_all_arrive(control):
     for object_list in control.players:
@@ -14,7 +15,7 @@ def is_all_arrive(control):
 class Ready:
     @staticmethod
     def enter(control):
-        Ready.players_destination_init(control)
+        players_destination_init(control)
 
     @staticmethod
     def exit(control):
@@ -23,53 +24,7 @@ class Ready:
     @staticmethod
     def do(control):
         if is_all_arrive(control):
-            Ready.set_Start(control)
-    
-# Start 전에 셋팅
-    def set_Start(control):
-        control.state_machine.change_state(Start)
-        print(control.fielders[0].state_machine.cur_state)
-        Ready.set_picker_Shoot(control)
-        Ready.set_batter_Hit(control)
-
-# 모든 player 도착지 초기화
-    def players_destination_init(control):
-        Ready.picker_destination_init(control,control.picker[0])
-        Ready.fielders_destination_init(control,control.fielders)
-        Ready.basemen_destination_init(control,control.basemen)
-        Ready.batter_destination_init(control,control.batter[0]) 
-     
-# picker 도착지 초기화
-    def picker_destination_init(control,picker):
-        picker.goto(control.picker_location)
-
-# fielders 도착지 초기화
-    def fielders_destination_init(control,fielders):
-        for fielder in fielders:
-            fielder.goto(control.fielder_locations[fielders.index(fielder)-1])
-
-# basemen 도착지 초기화
-    def basemen_destination_init(control,basemen):
-        for baseman in control.basemen:
-            baseman.goto(control.base_locations[basemen.index(baseman)])
-        Ready.catcher_destination_init(control,control.basemen[0])
-
-# catcher 도착지 초기화
-    def catcher_destination_init(control,catcher):
-        catcher.goto(control.catcher_location)
-
-# batter 도착지 초기화
-    def batter_destination_init(control,batter):
-        batter.goto(control.batter_location)
-
-# picker 상태를 Shoot으로 변경
-    def set_picker_Shoot(control):
-        control.picker[0].state_machine.change_state(Shoot,('CHANGE',0))
-
-# batter 상태를 Hit으로 변경
-    def set_batter_Hit(control):
-        control.batter[0].state_machine.change_state(Hit)
-
+            set_Start(control)
 class Start:
     @staticmethod
     def enter(control):
@@ -166,7 +121,7 @@ class Field_control:
         self.basemen=[]                                                                             # basemen
         self.players=[self.batter,self.runner,self.picker,self.basemen,self.fielders]            # players
         self.state_list={'Ready':Ready,'Start':Start,'Hitted':Hitted,'Catch':Catch}
-        self.player_state_list={'Idle':Idle,'Run':Run}
+        self.player_state_list={'Idle':Idle,'Run':Run,'Shoot':Shoot,'Hit':Hit}
         self.players_init()
         self.state_machine.cur_state.enter(self)  
                   
