@@ -109,14 +109,11 @@ class Ball:
         self.image=load_image('ball.png')
         self.shadow_image=load_image('ball_shadow.png')
         self.state_machine=StateMachine(self)
-        self.v,self.static_v=shoot_v,shoot_v
-        self.a=-6*8
+        self.v,self.static_v,self.h_v=shoot_v,shoot_v,shoot_v*3/4
+        self.a,self.h_a=-6*8,-80
         self.distance=self.v*(self.v/(-self.a))/2
         self.shoot_angle=angle
-        self.x,self.y=x,y
-        self.destination=[self.x+self.distance*math.cos(self.shoot_angle),self.y+self.distance*math.sin(self.shoot_angle)]
-        self.allow_collision_point=[self.destination[0]*0.8,self.destination[1]*0.8]
-        self.on_ground_point=[self.destination[0]*0.9,self.destination[1]*0.9]
+        self.x,self.y,self.h=x,y,4
         self.cur_state=0
         self.moving_state=['sky','allow','on_ground','stop']
         self.state_point=[]
@@ -127,18 +124,24 @@ class Ball:
         return (self.destination[0]-self.x)**2+(self.destination[1]-self.y)**2<=(game_framework.frame_time*ONE_PPS)**2
 
     def update(self):
-        if self.v>0:
-            self.v+=self.a*game_framework.frame_time
+        if self.h<=0:
+            self.h=0
+            self.h_v=0
         else:
+            self.h_v+=self.h_a*game_framework.frame_time
+        if self.v<=0:
             self.v=0
+        else:
+            self.v+=self.a*game_framework.frame_time
         self.x+=game_framework.frame_time*ONE_PPS*self.v*math.cos(self.shoot_angle)
         self.y+=game_framework.frame_time*ONE_PPS*self.v*math.sin(self.shoot_angle)
+        self.h+=game_framework.frame_time*ONE_PPS*self.h_v
 
     
     def draw(self):
         self.shadow_image.clip_draw(0,0,68,68,self.x,self.y,4,2)
         if self.hit_tf:
-            self.image.clip_draw(0,0,68,68,self.x,self.y+abs(self.static_v//2-abs((self.under_zero(self.v-int(self.static_v*0.3)))//4-self.static_v//2))+1,4,4)
+            self.image.clip_draw(0,0,68,68,self.x,self.y+self.h,4,4)
         else:
             self.image.clip_draw(0,0,68,68,self.x,self.y,4,4)
         draw_rectangle(*self.get_bb())
