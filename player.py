@@ -3,6 +3,7 @@ import math,random
 from sdl2 import SDLK_DOWN, SDLK_SPACE
 import game_framework
 import game_world
+import play_mode
 from behavior_tree import BehaviorTree, Action, Sequence, Condition, Selector
 from ball import Ball
 def is_swing(player,e):
@@ -12,17 +13,27 @@ def is_click(player,e):
     return e[0]=='INPUT' and e[1].type==SDL_MOUSEBUTTONDOWN and player.x>=e[1].x-player.size[0]/2 and player.x<=e[1].x+player.size[0]/2 and player.y>=600-e[1].y-1-player.size[0]/2 and player.y<=600-e[1].y-1+player.size[0]/2
 
 PIXEL_PER_METER=8.16
-RUN_SPEED_KMPH=24  #24km/h
-RUN_SPEED_MPM=(RUN_SPEED_KMPH*1000/60)
-RUN_SPEED_MPS=(RUN_SPEED_MPM/60)
-RUN_SPEED_PPS=(RUN_SPEED_MPS*PIXEL_PER_METER)
-
-TIME_PER_ACTION=1
-ACTION_PER_TIME=1/TIME_PER_ACTION
-FRAME_PER_ACTION=8
 
 PI=math.pi
+class The_Catcher:
+    @staticmethod
+    def enter(player,e):
+        pass
+
+    @staticmethod
+    def exit(player,e):
+        pass
+
+    @staticmethod
+    def do(player):
+        pass
+
+    @staticmethod
+    def draw(player):
+        player.image.clip_composite_draw(player.sprite_p[0]+160,player.sprite_p[1]+72,16,24,0,'',player.location[0],player.location[1],player.size[0],player.size[1])
+
 class Ready_to_Shoot:
+    @staticmethod
     def enter(player,e):
         print('R-shoot')
         player.get_bt()
@@ -41,7 +52,7 @@ class Ready_to_Shoot:
         player_temp=[0,2,4,6,8,11,14,16]
         player_size=[16,16,16,16,24,24,16,16,16]
         dif=[0,0,0,0,0,0,4,8]
-        player.image.clip_composite_draw(player.sprite_p[0]+player_temp[int(player.frame)]*8,player.sprite_p[1]-24-dif[int(player.frame)]+160,player_size[int(player.frame)],24,0,'',player.x,player.y-dif[int(player.frame)],player.size[0]*(player_size[int(player.frame)])/16,player.size[1])
+        player.image.clip_composite_draw(player.sprite_p[0]+player_temp[int(player.frame)]*8,player.sprite_p[1]-24-dif[int(player.frame)]+160,player_size[int(player.frame)],23,0,'',player.location[0],player.location[1]-dif[int(player.frame)],player.size[0]*(player_size[int(player.frame)])/16,player.size[1])
 
 class Shoot:
     @staticmethod
@@ -64,7 +75,7 @@ class Shoot:
         player_temp=[0,2,4,6,8,11,14,16]
         player_size=[16,16,16,16,24,24,16,16,16]
         dif=[0,0,0,0,0,0,4,8]
-        player.image.clip_composite_draw(player.sprite_p[0]+player_temp[int(player.frame)]*8,player.sprite_p[1]-24-dif[int(player.frame)]+160,player_size[int(player.frame)],24,0,'',player.x,player.y-dif[int(player.frame)],player.size[0]*(player_size[int(player.frame)])/16,player.size[1])
+        player.image.clip_composite_draw(player.sprite_p[0]+player_temp[int(player.frame)]*8,player.sprite_p[1]-24-dif[int(player.frame)]+160,player_size[int(player.frame)],23,0,'',player.location[0],player.location[1]-dif[int(player.frame)],player.size[0]*(player_size[int(player.frame)])/16,player.size[1])
 
 
 # Run : 이동 상태
@@ -82,12 +93,12 @@ class Run:
     
     @staticmethod
     def do(player):
-        player.frame=(player.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)%3
+        player.frame=(player.frame+player.ACTION_PER_TIME*player.FRAME_PER_ACTION*game_framework.frame_time)%3
         pass
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw(int(player.frame)*16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.sprite_option[1]*12+48,16,20,0,player.sprite_option[0],player.x,player.y,player.size[0],player.size[1])
+        player.image.clip_composite_draw(int(player.frame)*16+player.sprite_p[0]+18,player.sprite_p[1]+12-player.sprite_option[1]*12+48,16,19,0,player.sprite_option[0],player.location[0],player.location[1],player.size[0],player.size[1])
         pass
 
 
@@ -95,7 +106,7 @@ class Run:
 class Idle:
     @staticmethod
     def enter(player,e):
-        print('idle')  #
+        #print('idle')  #
         player.get_bt()
         player.frame=0  # 프레임 초기화
 
@@ -109,7 +120,7 @@ class Idle:
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw(player.sprite_p[0],player.sprite_p[1]+72,16,20,0,player.sprite_option[0],player.x,player.y,player.size[0],player.size[1])
+        player.image.clip_composite_draw(player.sprite_p[0],player.sprite_p[1]+72,16,20,0,player.sprite_option[0],player.location[0],player.location[1],player.size[0],player.size[1])
         pass
     
 class StateMachine:
@@ -150,14 +161,16 @@ class Player:
     image=None                                      # sprite
 
     def __init__(self,x=400,y=0):
-        self.x,self.y=x,y                           # 기본 좌표
+        self.location=[x,y]                           # 기본 좌표
         self.frame=0                                # 프레임
         self.sprite_option=['',1]                   # 'h': 왼쪽, '': 오른쪽,  -1 : 다운, 1 : 업
-        self.destination=[self.x,self.y]            # 도착지점
+        self.destination=[self.location[0],self.location[1]]            # 도착지점
         self.size=[32,24]                           # player draw 사이즈
         self.base=0
         self.base_dir=1
         self.already_shoot=False
+        self.ball_picked=False
+        self.set_pps()
         self.bt_list=[]
         self.build_behavior_tree()
         self.sprite_p=[208,160]
@@ -182,12 +195,22 @@ class Player:
 
     # 도착점 변경 함수
     def goto(self,destination):
-        self.destination=destination    
+        self.destination=[destination[0],destination[1]+self.size[1]//2]    
 
     def fire_ball(self,cur_v,angle):
-        ball=Ball(self.x,self.y,cur_v,angle)
+        ball=Ball(self.location[0],self.location[1],cur_v,angle)
         game_world.add_object(ball,3)
         game_world.add_collision_pair('ball:bat',ball,None)
+
+    def set_pps(self):
+        self.RUN_SPEED_KMPH=24  #24km/h
+        self.RUN_SPEED_MPM=(self.RUN_SPEED_KMPH*1000/60)
+        self.RUN_SPEED_MPS=(self.RUN_SPEED_MPM/60)
+        self.RUN_SPEED_PPS=(self.RUN_SPEED_MPS*PIXEL_PER_METER)
+
+        self.TIME_PER_ACTION=1
+        self.ACTION_PER_TIME=1/self.TIME_PER_ACTION
+        self.FRAME_PER_ACTION=8
 
     def get_bt(self):
         if self.state_machine.cur_state==Idle:
@@ -209,19 +232,19 @@ class Player:
         return BehaviorTree.SUCCESS
 
     def set_run_angle(self):
-            self.rad=(math.atan2((self.destination[1]-self.y),(self.destination[0]-self.x)))%(2*PI)
+            self.rad=(math.atan2((self.destination[1]-self.location[1]),(self.destination[0]-self.location[0])))%(2*PI)
             return BehaviorTree.SUCCESS
 
     def is_less_than(self):
-        return (self.destination[0]-self.x)**2+(self.destination[1]-self.y)**2<=(game_framework.frame_time*RUN_SPEED_PPS)**2
+        return (self.destination[0]-self.location[0])**2+(self.destination[1]-self.location[1])**2<=(game_framework.frame_time*self.RUN_SPEED_PPS)**2
     
     def move_slightly_to(self):
         if not self.is_less_than():
-            self.x+=(game_framework.frame_time*RUN_SPEED_PPS)*math.cos(self.rad)
-            self.y+=(game_framework.frame_time*RUN_SPEED_PPS)*math.sin(self.rad)
-            return BehaviorTree.RUNNING
+            self.location[0]+=(game_framework.frame_time*self.RUN_SPEED_PPS)*math.cos(self.rad)
+            self.location[1]+=(game_framework.frame_time*self.RUN_SPEED_PPS)*math.sin(self.rad)
+            return BehaviorTree.SUCCESS
         else:
-            self.x,self.y=self.destination[0],self.destination[1]
+            self.location[0],self.location[1]=self.destination[0],self.destination[1]
             return BehaviorTree.SUCCESS
 
     def set_sprite_option(self):
@@ -233,13 +256,13 @@ class Player:
 
     #Condition : 
     def is_arrive(self):
-        if self.destination==[self.x,self.y]:
+        if self.destination==[self.location[0],self.location[1]]:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.FAIL
         
     def is_not_arrive(self):
-        if self.destination!=[self.x,self.y]:
+        if self.destination!=[self.location[0],self.location[1]]:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.FAIL
@@ -274,7 +297,7 @@ class Player:
             return BehaviorTree.RUNNING
 
     def do_shoot(self):
-        self.frame=(self.frame+ACTION_PER_TIME*FRAME_PER_ACTION*game_framework.frame_time)
+        self.frame=(self.frame+self.ACTION_PER_TIME*self.FRAME_PER_ACTION*game_framework.frame_time)
         if self.frame>=8:
             self.frame=7
             self.is_shoot=True        
