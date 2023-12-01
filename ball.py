@@ -1,4 +1,4 @@
-from pico2d import load_image,draw_rectangle
+from pico2d import load_image,draw_rectangle,get_time
 import game_framework
 import math
 import play_mode
@@ -109,7 +109,7 @@ class Ball:
         self.image=load_image('ball.png')
         self.shadow_image=load_image('ball_shadow.png')
         self.state_machine=StateMachine(self)
-        self.v,self.static_v,self.h_v=shoot_v,shoot_v,shoot_v*3/4
+        self.v,self.static_v,self.h_v=shoot_v,shoot_v,0
         self.a,self.h_a=-5*8,-100
         self.shoot_angle,self.h_angle=angle,0
         self.x,self.y,self.h=x,y,12
@@ -138,11 +138,10 @@ class Ball:
     def handle_collision(self,group,other):
         if group=='ball:bat':
             if not self.is_hit:
+                self.set_element()
                 self.calculate_times()
                 self.set_per_distance()
-                play_mode.control.allow_catch_list=[self.times_when_ball_on_ground,self.distances_when_ball_on_ground,self.locations_when_ball_on_ground]
                 play_mode.control.state_machine.change_state(play_mode.control.state_list['Hitted'])
-                self.shoot_angle=play_mode.control.runner[-1].bat.rad+PI/2+PI*1/12*random.random()
                 play_mode.control.runner[-1].state_machine.change_state(play_mode.control.player_state_list['Idle'])
             self.v=random.randint(140,170)
             self.static_v=self.v
@@ -164,30 +163,23 @@ class Ball:
         if self.h<0:
             self.h=0
             self.h_v*=-0.5 if (abs(self.h_v/self.h_a)<abs(self.v/self.a))else 0
+            print(self.x,self.y,self.h_v,get_time()-self.time)
         else:
             self.h_v+=self.h_a*game_framework.frame_time
     
     def set_xy_velocity(self):
-        if self.v<=0:
-            self.v=0
-        else:
-            self.v+=self.a*game_framework.frame_time
-    
-#a(t)=a
-#v(t)=v+a*t
-#x(t)=1/2*a*t^2+v*t+x
-#12=1/2*a*t^2+v*t+x
-#v(t')=0 -> v=-a*t
-#x(t')=1/2*a*t^2-a
-# (a+v+a*t)*t*1/2-12=0
-# (80+
+        self.v=self.v+self.a*game_framework.frame_time if self.v>0 else 0
+
     def calculate_times(self):
-        the_height_v=self.h_v
-        time=abs(2*self.h_v/self.h_a)
-        i,t=1,1
-        while the_height_v>40:
-            self.times_when_ball_on_ground.append(time*i)
-            t,i,the_height_v=t/2,i+t,the_height_v/2
+        heighest_time=abs(self.h_v/self.h_a)  #처음때의 높이 최고점일 때 시간
+        height_h=self.h_a/2*heighest_time**2+self.h_v*heighest_time+12 #최고점에서의 z 높이
+        frist_on_ground_h_time=math.sqrt(abs(height_h/self.h_a*2))+heighest_time #다시 내려올 때의 시간 + 최고점 시간
+        self.times_when_ball_on_ground.append(frist_on_ground_h_time)
+        v_on_ground=abs(self.h_a*(frist_on_ground_h_time-heighest_time))
+        while v_on_ground*0.5>40: #0.5=탄성계수
+            v_on_ground/=2
+            print(v_on_ground)
+            self.times_when_ball_on_ground.append(abs(2*v_on_ground/self.h_a)+self.times_when_ball_on_ground[-1])
         self.times_when_ball_on_ground.append(abs(self.v/self.a))
 
     def set_per_distance(self):
