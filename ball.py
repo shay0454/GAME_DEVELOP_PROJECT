@@ -2,6 +2,7 @@ from pico2d import load_image,draw_rectangle,get_time
 import game_framework
 import math
 import play_mode
+import game_world
 import random
 def is_catch(ball):
     pass
@@ -118,6 +119,7 @@ class Ball:
         self.moving_state=['sky','allow','on_ground','stop']
         self.state_point,self.times_when_ball_on_ground,self.distances_when_ball_on_ground,self.locations_when_ball_on_ground=[],[],[],[]
         self.state_machine.start()
+        game_world.add_collision_pair('ball:fielder',self,None)
         play_mode.control.ball=self
 
     def is_less_than(self):
@@ -144,12 +146,15 @@ class Ball:
                 play_mode.control.state_machine.change_state(play_mode.control.state_list['Hitted'])
                 play_mode.control.runner[-1].state_machine.change_state(play_mode.control.player_state_list['Idle'])
                 self.is_hit=True
+        if group=='ball:fielder':
+            if self.h<=12:
+                game_world.remove_object(self)
+                del self
 
     def set_element(self):
         self.v=random.randint(140,170)        # 3차원 속도 설정
         self.h_angle=PI/180*random.randint(25,35)  # 높이 각도 설정
         self.h_v,self.v=self.v*math.sin(self.h_angle),self.v*math.cos(self.h_angle) # 높이 각도에 따른 xy평면과 y영역의 속도 설정
-        self.time=get_time() # 실제 체크용 
         self.shoot_angle=play_mode.control.batter[0].bat.rad+PI/2+PI*1/12*random.random() #xy 날아가는 방향 설정
 
     def update_xy(self):
@@ -166,7 +171,6 @@ class Ball:
         if self.h<0:
             self.h=0
             self.h_v*=-0.5 if (abs(self.h_v/self.h_a)<abs(self.v/self.a))else 0
-            print(math.sqrt((self.x-400)**2+(self.y-70)**2),self.h_v,get_time()-self.time)
         else:
             self.h_v+=self.h_a*game_framework.frame_time
     
@@ -174,6 +178,7 @@ class Ball:
         self.v=self.v+self.a*game_framework.frame_time if self.v>0 else 0
 
     def calculate_times(self):
+        self.time=get_time() # 실제 체크용 
         heighest_time=abs(self.h_v/self.h_a)  #처음때의 높이 최고점일 때 시간
         height_h=self.h_a/2*heighest_time**2+self.h_v*heighest_time+12 #최고점에서의 z 높이
         frist_on_ground_h_time=math.sqrt(abs(height_h/self.h_a*2))+heighest_time #다시 내려올 때의 시간 + 최고점 시간

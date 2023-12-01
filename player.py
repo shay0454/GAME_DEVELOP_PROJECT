@@ -10,7 +10,7 @@ def is_swing(player,e):
     return e[0]=='INPUT'and e[1].type==SDLK_DOWN and e[1].key==SDLK_SPACE
 
 def is_click(player,e):
-    return e[0]=='INPUT' and e[1].type==SDL_MOUSEBUTTONDOWN and player.x>=e[1].x-player.size[0]/2 and player.x<=e[1].x+player.size[0]/2 and player.y>=600-e[1].y-1-player.size[0]/2 and player.y<=600-e[1].y-1+player.size[0]/2
+    return e[0]=='INPUT' and e[1].type==SDL_MOUSEBUTTONDOWN and player.location[0]>=e[1].location[0]-player.size[0]/2 and player.location[0]<=e[1].location[0]+player.size[0]/2 and player.location[1]>=600-e[1].location[1]-1-player.size[0]/2 and player.location[1]<=600-e[1].location[1]-1+player.size[0]/2
 
 PIXEL_PER_METER=8.16
 
@@ -192,6 +192,18 @@ class Player:
     # 현 상태에 따른 draw
     def draw(self):
         self.state_machine.draw()                           # cur_state.draw
+        draw_rectangle(*self.get_bb())
+
+    def get_bb(self):
+        return self.location[0]-self.size[0]//2,self.location[1]-self.size[1]//2-2,self.location[0]+self.size[0]//2,self.location[1]-self.size[1]//2+2
+    
+    def handle_collision(self,group,other):
+        if group=='ball:fielder':
+            if other.h<=12:
+                self.ball_picked=True
+                print('I have')
+                if play_mode.control.state_machine.cur_state==play_mode.control.state_list['Hitted']:
+                    play_mode.control.state_machine.change_state(play_mode.control.state_list['Catch'])
 
     # 도착점 변경 함수
     def goto(self,destination):
