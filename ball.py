@@ -140,7 +140,7 @@ class Ball:
             if not self.is_hit:
                 self.set_element()
                 self.calculate_times()
-                self.set_per_distance()
+                self.calculate_distances()
                 play_mode.control.state_machine.change_state(play_mode.control.state_list['Hitted'])
                 play_mode.control.runner[-1].state_machine.change_state(play_mode.control.player_state_list['Idle'])
                 self.is_hit=True
@@ -166,7 +166,7 @@ class Ball:
         if self.h<0:
             self.h=0
             self.h_v*=-0.5 if (abs(self.h_v/self.h_a)<abs(self.v/self.a))else 0
-            print(self.x,self.y,self.h_v,get_time()-self.time)
+            print(math.sqrt((self.x-400)**2+(self.y-70)**2),self.h_v,get_time()-self.time)
         else:
             self.h_v+=self.h_a*game_framework.frame_time
     
@@ -181,13 +181,12 @@ class Ball:
         v_on_ground=abs(self.h_a*(frist_on_ground_h_time-heighest_time))
         while v_on_ground*0.5>40: #0.5=탄성계수
             v_on_ground/=2
-            print(v_on_ground)
             self.times_when_ball_on_ground.append(abs(2*v_on_ground/self.h_a)+self.times_when_ball_on_ground[-1])
         self.times_when_ball_on_ground.append(abs(self.v/self.a))
 
-    def set_per_distance(self):
+    def calculate_distances(self):
         for t in self.times_when_ball_on_ground:
-            distance=abs(self.a/2*t**2+self.static_v*t)
+            distance=ONE_PPS*abs(self.a/2*t**2+self.v*t)
             location=[self.x+distance*math.cos(self.shoot_angle),self.y+distance*math.sin(self.shoot_angle)]
             self.distances_when_ball_on_ground.append(distance)
             self.locations_when_ball_on_ground.append(location)
