@@ -143,11 +143,14 @@ class Ball:
                 self.set_per_distance()
                 play_mode.control.state_machine.change_state(play_mode.control.state_list['Hitted'])
                 play_mode.control.runner[-1].state_machine.change_state(play_mode.control.player_state_list['Idle'])
-            self.v=random.randint(140,170)
-            self.static_v=self.v
-            self.h_angle=PI/180*random.randint(25,35)
-            self.h_v,self.v=self.v*math.sin(self.h_angle),self.v*math.cos(self.h_angle)
-            self.is_hit=True
+                self.is_hit=True
+
+    def set_element(self):
+        self.v=random.randint(140,170)        # 3차원 속도 설정
+        self.h_angle=PI/180*random.randint(25,35)  # 높이 각도 설정
+        self.h_v,self.v=self.v*math.sin(self.h_angle),self.v*math.cos(self.h_angle) # 높이 각도에 따른 xy평면과 y영역의 속도 설정
+        self.time=get_time() # 실제 체크용 
+        self.shoot_angle=play_mode.control.batter[0].bat.rad+PI/2+PI*1/12*random.random() #xy 날아가는 방향 설정
 
     def update_xy(self):
         self.set_xy_velocity()
