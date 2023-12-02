@@ -12,12 +12,42 @@ def is_swing(player,e):
 def is_click(player,e):
     return e[0]=='INPUT' and e[1].type==SDL_MOUSEBUTTONDOWN and player.location[0]>=e[1].location[0]-player.size[0]/2 and player.location[0]<=e[1].location[0]+player.size[0]/2 and player.location[1]>=600-e[1].location[1]-1-player.size[0]/2 and player.location[1]<=600-e[1].location[1]-1+player.size[0]/2
 
+def is_less_than_ball(player,b_location,gap):
+    return ((b_location[0]-player.location[0])**2+(b_location[1]-player.location[1])**2<=(gap)**2)
+
+def check_near_in_ball(player):
+    if play_mode.control.ball!=None:
+        if is_less_than_ball(player,play_mode.control.ball.location,72):
+            player.goto(play_mode.control.ball.location)
+
 PIXEL_PER_METER=8.16
 
 PI=math.pi
+class Catch:
+    @staticmethod
+    def enter(player,e):
+        player.get_bt()
+        player.catch_time=get_time()
+        player.frame=0
+    
+    @staticmethod
+    def exit(player,e):
+        pass
+
+    @staticmethod
+    def do(player):
+        player.frame+=(player.frame+player.ACTION_PER_TIME*player.FRAME_PER_ACTION*game_framework.frame_time)
+        pass
+
+    @staticmethod
+    def draw(player):
+        player.image.clip_composite_draw(player.sprite_p[0]+96,player.sprite_p[1]+72,16,24,0,'',player.location[0],player.location[1],player.size[0],player.size[1])
+
 class The_Catcher:
     @staticmethod
     def enter(player,e):
+        player.get_bt()
+        player.frame=0
         pass
 
     @staticmethod
@@ -26,16 +56,20 @@ class The_Catcher:
 
     @staticmethod
     def do(player):
-        pass
+        if not player.ball_picked:
+            return
+        player.frame+=(player.frame+player.ACTION_PER_TIME*player.FRAME_PER_ACTION*game_framework.frame_time)
+        if player.frame>=4:
+            print('strike')
+            player.state_machine.change(Idle,('CHANGE',0))
 
     @staticmethod
     def draw(player):
-        player.image.clip_composite_draw(player.sprite_p[0]+160,player.sprite_p[1]+72,16,24,0,'',player.location[0],player.location[1],player.size[0],player.size[1])
+        player.image.clip_composite_draw(int(player.frame)*16+player.sprite_p[0]+160,player.sprite_p[1]+72,16,24,0,'',player.location[0],player.location[1],player.size[0],player.size[1])
 
 class Ready_to_Shoot:
     @staticmethod
     def enter(player,e):
-        print('R-shoot')
         player.get_bt()
         player.frame=0
 
@@ -57,7 +91,6 @@ class Ready_to_Shoot:
 class Shoot:
     @staticmethod
     def enter(player,e):
-        print('shoot')
         player.get_bt()
         player.frame=0
         player.already_shoot=True
@@ -93,6 +126,7 @@ class Run:
     
     @staticmethod
     def do(player):
+        check_near_in_ball(player)
         player.frame=(player.frame+player.ACTION_PER_TIME*player.FRAME_PER_ACTION*game_framework.frame_time)%3
         pass
 
@@ -116,6 +150,7 @@ class Idle:
     
     @staticmethod
     def do(player):
+        check_near_in_ball(player)
         pass
 
     @staticmethod
@@ -130,7 +165,9 @@ class StateMachine:
         self.state_table={
             Idle : {},
             Run : {},
-            Shoot:{}
+            Shoot:{},
+            Catch:{},
+            The_Catcher:{}
         }
 
     def start(self):
@@ -198,10 +235,11 @@ class Player:
         return self.location[0]-self.size[0]//2,self.location[1]-self.size[1]//2-2,self.location[0]+self.size[0]//2,self.location[1]-self.size[1]//2+2
     
     def handle_collision(self,group,other):
-        if group=='ball:fielder':
+        if group=='ball:defender':
             if other.h<=12:
                 self.ball_picked=True
                 print('I have')
+                self.state_machine.change_state(Catch,('CHANGE',0))
                 if play_mode.control.state_machine.cur_state==play_mode.control.state_list['Hitted']:
                     play_mode.control.state_machine.change_state(play_mode.control.state_list['Catch'])
 
@@ -233,6 +271,10 @@ class Player:
             self.bt=self.bt_list[2]
         elif self.state_machine.cur_state==Shoot:
             self.bt=self.bt_list[3]
+        elif self.state_machine.cur_state==The_Catcher:
+            self.bt=self.bt_list[4]
+        elif self.state_machine.cur_state==Catch:
+            self.bt=self.bt_list[5]
 
     # Action :
     def change_state_Idle(self):
@@ -249,24 +291,36 @@ class Player:
 
     def is_less_than(self):
         return (self.destination[0]-self.location[0])**2+(self.destination[1]-self.location[1])**2<=(game_framework.frame_time*self.RUN_SPEED_PPS)**2
-    
+
+#도착지로 조금씩 이동
     def move_slightly_to(self):
         if not self.is_less_than():
             self.location[0]+=(game_framework.frame_time*self.RUN_SPEED_PPS)*math.cos(self.rad)
             self.location[1]+=(game_framework.frame_time*self.RUN_SPEED_PPS)*math.sin(self.rad)
             return BehaviorTree.SUCCESS
         else:
-            self.location[0],self.location[1]=self.destination[0],self.destination[1]
+            self.location=self.destination
             return BehaviorTree.SUCCESS
 
+
+# 방향에 맞는 스프라이트 셋팅
     def set_sprite_option(self):
         showed_list=[['',1],['h',1],['h',-1],['',-1]]
         i=int(self.rad//(PI/2))
         self.sprite_option=showed_list[i]
         return BehaviorTree.SUCCESS
 
-
+#베이스 찾기
+    def find_base(self):
+        #play_mode.cotrol.find_base()
+        return BehaviorTree.SUCCESS
+    
     #Condition : 
+    def is_frame_over_catch(self):
+        if self.frame>=4:
+            return BehaviorTree.SUCCESS
+        else:
+            return BehaviorTree.FAIL
     def is_arrive(self):
         if self.destination==[self.location[0],self.location[1]]:
             return BehaviorTree.SUCCESS
@@ -331,20 +385,21 @@ class Player:
         a_s2=Action('상태를 Run으로 변경',self.change_state_Run)
         a_s3=Action('상태를 R_Shoot으로 변경',self.change_state_Ready_to_Shoot)
         a_s4=Action('상태를 Shoot으로 변경',self.change_state_Shoot)
-        a_s2_1=Action('방향 설정',self.set_run_angle)
+        a_s2_1=Action('도착지 방향 설정',self.set_run_angle)
+
         a_s2_2=Action('방향에 따른 스프라이트 설정',self.set_sprite_option)
-        a_s2_3=Action('조금씩 이동',self.move_slightly_to)
+        a_s2_3=Action('도착지 조금씩 이동',self.move_slightly_to)
         a_s3_1=Action('기다릴 시간 셋팅',self.set_waiting_time_and_time)
         a_s3_2=Action('기다림',self.waiting_shoot)
         a_s3_3=Action('슈팅',self.do_shoot)
+        a_s5_1=Action('알맞은 베이스 찾기',self.find_base)
         
         c1_1=Condition('도착하였는가',self.is_arrive)
         c1_2=Condition('도착하지 못하였는가',self.is_not_arrive)
         c_s1=Condition('Idle인가',self.is_state_Idle)
         c_s2=Condition('Run인가',self.is_state_Run)
         c3_1=Condition('이미 던졌는가',self.is_not_already_shoot)
-
-
+        c5_1=Condition('프레임이 넘었는가 (catch)',self.is_frame_over_catch)
         self.SEQ_is_Idle=Sequence('Idle 상태인지 확인',c1_1,a_s1)
         self.SEQ_Idle=Sequence('기본상태작동',)
 
@@ -357,14 +412,18 @@ class Player:
         self.SEQ_do_Shoot=Sequence('Shoot 상태 활동',a_s3_1,a_s3_2,a_s3_2,a_s3_3,a_s3)
         self.SEQ_is_Shoot=Sequence('Shoot 상태인지 확인',)
         self.SEL_Shoot=Sequence('Shoot 상태 체크 후 활동',self.SEQ_do_Shoot)
-
         self.SEL_set_Idle=Selector('Idle 상태 활동',self.SEQ_is_Run,self.SEQ_Idle)
+
         self.bt_list.append(BehaviorTree(self.SEL_set_Idle))
         self.SEL_set_Run=Selector('Run 상태 활동',self.SEQ_is_Idle,self.SEL_Run)
         self.bt_list.append(BehaviorTree(self.SEL_set_Run))
-        self.SEQ_is_already_Shoot=Sequence('던졌는지 체크 후, 변경',self.SEQ_set_already_Shoot)
+        self.SEQ_is_already_Shoot=Sequence('shooter, 던졌는지 체크 후, 변경',self.SEQ_set_already_Shoot)
         self.bt_list.append(BehaviorTree(self.SEQ_is_already_Shoot))
         self.SEQ_set_Shoot=Sequence('Shoot 상태 활동',self.SEL_Shoot)
         self.bt_list.append(BehaviorTree(self.SEQ_set_Shoot))
+        self.SEQ_set_The_Catcher=Sequence('포수 상태 활동',)
+        self.bt_list.append(BehaviorTree(self.SEQ_set_The_Catcher))
+        self.SEQ_set_Catch=Sequence('공을 잡은 후 상태 활동',c5_1,a_s5_1)
+        self.bt_list.append(BehaviorTree(self.SEQ_set_Catch))
 
         self.bt=BehaviorTree(self.SEL_set_Idle)
