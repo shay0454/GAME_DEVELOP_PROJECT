@@ -12,24 +12,22 @@ from behavior_tree import BehaviorTree, Action, Sequence, Condition, Selector
 def is_swing(player,e):
     return e[0]=='INPUT'and e[1].type==SDL_KEYDOWN and e[1].key==SDLK_SPACE
 
-def is_hit(player,e):
-    return e[0]=='CHECK'
-
 def is_not_arrive(player,e):
-    return e[0]=='CHECK' and player.destination!=[player.location[0],player.location[1]]
-
-def is_not_hit(player,e):
-    return not is_hit(player,e)
+    return e[0]=='CHECK' and player.destination!=player.location
 
 def is_arrive(player,e):
-    return e[0]=='CHECK' and player.destination==[player.location[0],player.location[1]]
+    return e[0]=='CHECK' and player.destination==player.location
+
+def mouse_in(player,e):
+    in_x=player.location[0]>=e[1].x-player.size[0]/2 and player.location[0]<=e[1].x+player.size[0]/2
+    in_y=player.location[1]>=800-e[1].y-1-player.size[0]/2 and player.location[1]<=800-e[1].y-1+player.size[0]/2
+    return in_x and in_y
 
 def is_click(player,e):
-    if e[0]=='INPUT' and e[1]!=None and e[1].type==SDL_MOUSEBUTTONDOWN and player.location[0]>=e[1].location[0]-player.size[0]/2 and player.location[0]<=e[1].location[0]+player.size[0]/2 and player.location[1]>=600-e[1].location[1]-1-player.size[0]/2 and player.location[1]<=600-e[1].location[1]-1+player.size[0]/2:
+    if e[0]=='INPUT' and e[1].type==SDL_MOUSEBUTTONDOWN and mouse_in(player,e):
         player.base_dir*=-1
-        player.target_base+=player.base_dir
-        player.destination=play_mode.control.base.base_locations['base'+str(player.target_base)]
-        print('click')
+        play_mode.control.base.player_run(player)
+        print(player.base_dir)
         return True
     return False
 
@@ -43,12 +41,12 @@ TIME_PER_ACTION=1
 ACTION_PER_TIME=1/TIME_PER_ACTION
 FRAME_PER_ACTION=10
 PI=math.pi
+
 class Run:
     @staticmethod
     def enter(player,e):
         print('Run')
-        player.get_bt()
-
+        get_bt(player)
 
     @staticmethod
     def exit(player,e):
@@ -66,8 +64,7 @@ class Run:
 class Hit:
     @staticmethod
     def enter(player,e):
-        print('hitter_hit')
-        player.get_bt()
+        get_bt(player)
         player.frame=0
     
     @staticmethod
@@ -87,21 +84,20 @@ class Hit:
 class Hitting: #416 488
     @staticmethod
     def enter(player,e):
-        print('hitting')
-        player.get_bt()
+        get_bt(player)
         player.swing=True
         player.frame=0
     
     @staticmethod
     def exit(player,e):
-        del player.bat
+        if player.bat!=None:
+            player.delete_bat()
         pass
 
     @staticmethod
     def do(player):
         pass
             
-
     @staticmethod
     def draw(player):
         hitter_frame_left=[0,2,5,8,12,15] #draw용 좌측 벽
@@ -115,7 +111,7 @@ class Idle:
     @staticmethod
     def enter(player,e):
         print('idle')
-        player.get_bt()
+        get_bt(player)
         player.frame=0
 
     @staticmethod
@@ -176,12 +172,10 @@ class Batter:
         self.sprite_option=['',1]                   # 'h': 왼쪽, '': 오른쪽, -1 : 다운, 1 : 업
         self.destination=[self.location[0],self.location[1]]            # 도착지점
         self.size=[32,24]                           # player draw 사이즈
-        self.swing=False                            # 스윙 유무
-        self.check_base=False
-        self.bat=None
-        self.in_base=False
-        self.hit_delay=0.8
+        self.swing,self.is_click=False,False        # 스윙 유무
+        self.hit_delay=2
         self.target_base=1
+        self.bat=None
         self.base_dir=1
         self.bt_list=[]
         self.build_behavior_tree()
@@ -216,16 +210,6 @@ class Batter:
     def stop(self): # 익수들이 공을 잡은 후에 쓸 명령
         self.destination=[self.location[0],self.location[1]]
 
-    def get_bt(self):
-        if self.state_machine.cur_state==Idle:
-            self.bt=self.bt_list[0]
-        elif self.state_machine.cur_state==Run:
-            self.bt=self.bt_list[1]
-        elif self.state_machine.cur_state==Hit:
-            self.bt=self.bt_list[2]
-        elif self.state_machine.cur_state==Hitting:
-            self.bt=self.bt_list[3]
-
     # Action :
     def change_state_Idle(self):
         self.state_machine.change_state(Idle,('Change',0))
@@ -246,7 +230,7 @@ class Batter:
         if not self.is_less_than():
             self.location[0]+=(game_framework.frame_time*RUN_SPEED_PPS)*math.cos(self.rad)
             self.location[1]+=(game_framework.frame_time*RUN_SPEED_PPS)*math.sin(self.rad)
-            return BehaviorTree.RUNNING
+            return BehaviorTree.SUCCESS
         else:
             self.location[0],self.location[1]=self.destination[0],self.destination[1]
             return BehaviorTree.SUCCESS
@@ -257,16 +241,15 @@ class Batter:
         self.sprite_option=showed_list[i]
         return BehaviorTree.SUCCESS
 
-
     #Condition : 
     def is_arrive(self):
-        if self.destination==[self.location[0],self.location[1]]:
+        if self.destination==self.location:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.FAIL
         
     def is_not_arrive(self):
-        if self.destination!=[self.location[0],self.location[1]]:
+        if self.destination!=self.location:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.FAIL
@@ -297,7 +280,7 @@ class Batter:
             return BehaviorTree.FAIL
 
     def create_bat(self):
-        self.bat=Bat(self.location[0],self.location[1])
+        self.bat=Bat(self.location[0]+(-3 if self.sprite_option[0]==''else 3),self.location[1])
         pass
 
     def do_hitting(self):
@@ -321,6 +304,12 @@ class Batter:
         self.swing=False
         return BehaviorTree.SUCCESS
     
+    def delete_bat(self):
+        for Craw_bat in self.bat.bat_list:
+            game_world.remove_object(Craw_bat)
+        game_world.remove_object(self.bat)
+        return BehaviorTree.SUCCESS
+    
     def change_state_Hit(self):
         self.state_machine.change_state(Hit,('Change',0))
         return BehaviorTree.SUCCESS
@@ -334,11 +323,11 @@ class Batter:
         a_s2_2=Action('방향에 따른 스프라이트 설정',self.set_sprite_option)
         a_s2_3=Action('조금씩 이동',self.move_slightly_to)
         a_s4_1=Action('스윙 시간 체크',self.set_waiting_time_and_time)
-        a_s4_1_1=Action('충돌 소환',self.create_bat)
+        a_s4_1_1=Action('충돌 박스 소환',self.create_bat)
         a_s4_2=Action('스윙 활동',self.do_hitting)
         a_s4_3=Action('스윙 쿨 체크',self.check_time)
         a_s4_4=Action('스윙 끝으로 셋팅',self.set_end_swing)
-
+        a_s4_5=Action('충돌 박스 삭제',self.delete_bat)
         
 
 
@@ -357,7 +346,7 @@ class Batter:
         self.SEQ_Run=Sequence('이동상태작동',a_s2_1,a_s2_2,a_s2_3)
 
         self.SEQ_is_Hit=Sequence('Hit 상태인지 확인',c_2_2,a_s4)
-        self.SEQ_do_Hitting=Sequence('Hitting 활동',a_s4_1,a_s4_1_1,a_s4_2,a_s4_4,a_s4_3)
+        self.SEQ_do_Hitting=Sequence('Hitting 활동',a_s4_1,a_s4_1_1,a_s4_2,a_s4_4,a_s4_3,a_s4_5,a_s4)
 
         self.SEL_set_Idle=Selector('Idle 상태 활동',self.SEQ_is_Run,self.SEQ_Idle)
         self.bt_list.append(BehaviorTree(self.SEL_set_Idle))
@@ -369,3 +358,13 @@ class Batter:
         self.bt_list.append(BehaviorTree(self.SEL_set_Hitting))
 
         self.bt=BehaviorTree(self.SEL_set_Idle)    
+
+def get_bt(player):
+    if player.state_machine.cur_state==Idle:
+        player.bt=player.bt_list[0]
+    elif player.state_machine.cur_state==Run:
+        player.bt=player.bt_list[1]
+    elif player.state_machine.cur_state==Hit:
+        player.bt=player.bt_list[2]
+    elif player.state_machine.cur_state==Hitting:
+        player.bt=player.bt_list[3]
