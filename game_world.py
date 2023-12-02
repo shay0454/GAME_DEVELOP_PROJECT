@@ -1,6 +1,6 @@
 from pico2d import*
 
-objects=[[],[],[],[]]
+objects=[[],[],[],[]] # 0 : field, 1 : base, 2: player, 3: ball
 
 collision_pairs ={}
 
@@ -13,10 +13,12 @@ def add_collision_pair(group,a,b):
     if b:
         collision_pairs[group][1].append(b)
 
-
 def add_object(o,depth=2):
     objects[depth].append(o)
 
+def add_objects(obj_s,depth=2):
+    for o in obj_s:
+        objects[depth].append(o)
 
 def update():
     for layer in objects:
@@ -51,7 +53,7 @@ def handle_collisions():
                 if collide(a,b):
                     a.handle_collision(group,b)
                     b.handle_collision(group,a)
-                    
+
 def collide(a,b):
     left_a,bottom_a,right_a,top_a=a.get_bb()
     left_b,bottom_b,right_b,top_b=b.get_bb()

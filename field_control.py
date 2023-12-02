@@ -8,7 +8,7 @@ from field_control_function import *
 def is_all_arrive(control):
     for object_list in control.players:
         for player in object_list:
-            if len(object_list)!=0 and not is_arrive(player,('CHECK',0)):
+            if not is_arrive(player,('CHECK',0)):
                 return False
     return True
 
@@ -28,8 +28,7 @@ class Ready:
 class Start:
     @staticmethod
     def enter(control):
-        print('start')
-        control.basemen[0].state_machine.change_state(The_Catcher,('CHANGE',0))
+        set_Start(control)
 
     @staticmethod
     def exit(control):

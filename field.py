@@ -1,5 +1,4 @@
 from pico2d import *
-import play_mode
 class Field: #1024 1024
     
     def __init__(self):

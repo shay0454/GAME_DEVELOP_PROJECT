@@ -146,7 +146,7 @@ class Ball:
                 play_mode.control.state_machine.change_state(play_mode.control.state_list['Hitted'])
                 play_mode.control.runner[-1].state_machine.change_state(play_mode.control.player_state_list['Idle'])
                 self.is_hit=True
-        if group=='ball:fielder':
+        if group=='ball:defender':
             if self.h<=12:
                 game_world.remove_object(self)
                 del self
