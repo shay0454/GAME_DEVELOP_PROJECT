@@ -54,8 +54,8 @@ class Hitted:
 
     @staticmethod
     def do(control):
-        control.base.runner_run()
-        
+        control.base.runners_run()
+        control.draw_ball_on_ground()
         pass
 
 class Catch:
