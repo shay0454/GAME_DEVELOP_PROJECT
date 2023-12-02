@@ -4,6 +4,7 @@ from player import *
 from offensive import *
 from base import *
 from field_control_function import *
+from ball_location_test import *
 # 모든 player가 도착했는지 확인용
 def is_all_arrive(control):
     for object_list in control.players:
@@ -24,7 +25,8 @@ class Ready:
     @staticmethod
     def do(control):
         if is_all_arrive(control):
-            set_Start(control)
+            change_state_Start(control)
+
 class Start:
     @staticmethod
     def enter(control):
@@ -42,9 +44,9 @@ class Hitted:
     @staticmethod
     def enter(control):
         print('control_hit')
-        control.batter.goto([560+4,240])
-        control.runner.append(control.batter)
-        control.batter=None
+        batter_run(control)
+        game_world.add_collision_pair('ball:defender',None,control.picker[0])
+        control.fielder_goto_ball_allow()
         pass
 
     @staticmethod
@@ -58,7 +60,17 @@ class Hitted:
         pass
 
 class Catch:
-    pass
+    @staticmethod
+    def enter(control):
+        pass
+
+    @staticmethod
+    def exit(control):
+        pass
+
+    @staticmethod
+    def do(control):
+        pass
 
 class End:
     pass
@@ -79,9 +91,7 @@ class Field_statement:
     def handle_events(self):
         for ckeck_active, next_state in self.state_table[self.cur_state].items():
             if ckeck_active(self.f_control):
-                self.cur_state.exit(self.f_control)
-                self.cur_state=next_state
-                self.cur_state.enter(self.f_control)
+                self.change_state(next_state)
                 return True
         return False
     
@@ -107,20 +117,15 @@ class Field_control:
         self.base_locations=[base.location for base in self.base.bases]                    # base_locations
         self.strike,self.out=0,0      
         self.base_point=[[400,90],[560+4,240],[400,400+12],[240-4,240]]                    # base_point
-        self.fielder_locations=[[250,240],[400,330],[550,240]]                                                                 # strike, out
-        self.catcher_location=[400,30]
-        self.picker_location=[400,230]
-        self.batter_location=[400-25,70]
-        self.fielder_info={0:'left',1:'mid',2:'right'}                                    # 제거 예정
+        self.fielder_locations=[[250,440],[400,530],[550,440]]                             
+        self.catcher_location,self.picker_location,self.batter_location=[400,30],[400,230],[400-25,70]
+        self.allow_catch_list=[]
+        self.ball=None
         self.tf_hit=False
-        self.batter=[]
-        self.picker=[]
-        self.runner=[]                                                                             # 변형 예정
-        self.fielders=[]                                                                            # fielders
-        self.basemen=[]                                                                             # basemen
+        self.batter,self.picker,self.runner,self.fielders,self.basemen=[],[],[],[],[]
         self.players=[self.batter,self.runner,self.picker,self.basemen,self.fielders]            # players
         self.state_list={'Ready':Ready,'Start':Start,'Hitted':Hitted,'Catch':Catch}
-        self.player_state_list={'Idle':Idle,'Run':Run,'Shoot':Shoot,'Hit':Hit}
+        self.player_state_list={'Idle':Idle,'Run':Run,'Shoot':Shoot,'Hit':Hit,'The_Catcher':The_Catcher}
         self.players_init()
         self.state_machine.cur_state.enter(self)  
                   
@@ -130,13 +135,8 @@ class Field_control:
     
     def draw(self):
         self.base.draw()
-
-    def Skip_Ready(self):
-        
-        pass
-
-    def tp_picker_destination_init(control):
-        control.fielders[0].goto(control.fielder_locations[control.fielder_info[0]])
+        if self.state_machine.cur_state==Hitted:
+            self.draw_ball_on_ground()
 
     def handle_events(self,event):
         if event.type==SDL_KEYDOWN and event.key==SDLK_SPACE:
@@ -145,35 +145,60 @@ class Field_control:
                 self.batter[0].state_machine.handle_event(('INPUT',event))
             elif self.state_machine.cur_state==Ready:
                 self.Skip_Ready()
+        elif event.type==SDL_KEYDOWN and event.key==SDLK_1:
+            print(1)
         if event.type==SDL_MOUSEBUTTONDOWN:
             for player in self.runner:
                 player.state_machine.handle_event(('INPUT',event))
 
+    def Skip_Ready(self):
+        players_location_init(self)
 
     def fielders_init(self):                                                                 # fielder 객체들 초기화용
         for i in range(4):
             player=Player()
             self.fielders.append(player)
-            game_world.add_object(player,2)
+            game_world.add_collision_pair('ball:defender',None,player)
+        game_world.add_objects(self.fielders,2)
+        
 
     def basemen_init(self):                                                                 # fielder 객체들 초기화용
         for i in range(4):
             player=Player()
             self.basemen.append(player)
-            game_world.add_object(player,2)
+            game_world.add_collision_pair('ball:defender',None,player)
+        game_world.add_objects(self.basemen,2)
 
     def picker_init(self):
         picker=Player()
         self.picker.append(picker)
-        game_world.add_object(self.picker[0],2)
+        game_world.add_objects(self.picker,2)
 
     def batter_init(self):
         batter=Batter()
         self.batter.append(batter)
-        game_world.add_object(self.batter[0],2)
+        game_world.add_objects(self.batter,2)
 
     def players_init(self):
         self.fielders_init()
         self.basemen_init()
         self.picker_init()
         self.batter_init()
+
+    def draw_ball_on_ground(self):
+        for location in self.ball.locations_when_ball_on_ground:
+            game_world.add_object(Ball_ground_location(*location),1)
+
+    def fielder_check_point(self,fielder):
+        for i in range(len(self.ball.locations_when_ball_on_ground)-1):
+            if distance_less_than(self.ball.locations_when_ball_on_ground[i][0]-fielder.location[0],self.ball.locations_when_ball_on_ground[i][1]-fielder.location[1],self.ball.times_when_ball_on_ground[i]*fielder.RUN_SPEED_PPS):
+                fielder.goto(self.ball.locations_when_ball_on_ground[i])
+                return
+        fielder.goto(self.ball.locations_when_ball_on_ground[len(self.ball.locations_when_ball_on_ground)-1])
+
+    def fielder_goto_ball_allow(self):
+            for fielder in self.fielders:
+                self.fielder_check_point(fielder)
+
+def distance_less_than(x,y,r):
+    return True if x*x+y*y<r*r else False
