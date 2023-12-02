@@ -37,7 +37,7 @@ def handle_event():
 
 def update():
     global frame,x,y,face
-    frame=(frame+1)%6
+    frame=(frame+1)%8
     x+=dir_x*10
     y+=dir_y*10
 
@@ -50,15 +50,20 @@ def draw(a):
         list_1=[16,24,24,24,24,24]
         list_2=[24,24,0,0,0,24]
         ch.clip_composite_draw(list[frame]*8,488-72,list_1[frame],32,0,'',x-list_2[frame],y,80*(list_1[frame])/24,60)
-
-
+    elif a==3:
+        ch_temp=[0,2,4,6,8,11,14,16]
+        ch_size=[16,16,16,16,24,24,16,16,16]
+        ak=[0,0,0,0,0,0,4,8]
+        ch.clip_composite_draw(ch_temp[int(frame)]*8,16+320+160-32-8-ak[frame],ch_size[int(frame)],24,0,'',400,300-ak[frame],80*(ch_size[frame])/24,60)
+    elif a==4:
+        ch.clip_draw()
 open_canvas()
 ch=load_image('Baseball_Players.png')
 while(running):
     clear_canvas()
     handle_event()
     update()
-    draw(2)
+    draw(3)
     update_canvas()
     delay(0.3)
 close_canvas()
