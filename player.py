@@ -231,6 +231,9 @@ class Player:
         self.state_machine.draw()                           # cur_state.draw
         draw_rectangle(*self.get_bb())
 
+    def stop(self):
+        self.destination=self.location
+        
     def get_bb(self):
         return self.location[0]-self.size[0]//2,self.location[1]-self.size[1]//2-2,self.location[0]+self.size[0]//2,self.location[1]-self.size[1]//2+2
     

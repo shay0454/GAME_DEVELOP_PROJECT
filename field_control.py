@@ -62,6 +62,7 @@ class Hitted:
 class Catch:
     @staticmethod
     def enter(control):
+        defender_stop(control)
         pass
 
     @staticmethod

@@ -43,6 +43,25 @@ def set_Start(control):
     set_batter_Hit(control)
     set_the_catcher_Ready(control)
 
+#수비수 모두 현 위치에서 정지
+def defender_stop(control):
+    fielder_stop(control)
+    picker_stop(control)
+    basemen_destination_init(control,control.basemen)
+    
+#투수 현 위치에서 정지
+def picker_stop(control):
+    control.picker[0].stop()
+
+#fiedlers 현 위치에서 정지
+def fielder_stop(control):
+    for fielder in control.fielders:
+        fielder.stop()
+
+def baseman_stop(control):
+    for baseman in control.basemen:
+        baseman.stop()
+
 def batter_run(control):
     batter=control.batter[0]
     control.runner.append(batter)
