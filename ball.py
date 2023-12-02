@@ -113,29 +113,29 @@ class Ball:
         self.v,self.static_v,self.h_v=shoot_v,shoot_v,0
         self.a,self.h_a=-5*8,-100
         self.shoot_angle,self.h_angle=angle,0
-        self.x,self.y,self.h=x,y,12
+        self.location,self.h=[x,y],12
         self.is_hit=False
         self.cur_state=0
         self.moving_state=['sky','allow','on_ground','stop']
         self.state_point,self.times_when_ball_on_ground,self.distances_when_ball_on_ground,self.locations_when_ball_on_ground=[],[],[],[]
         self.state_machine.start()
-        game_world.add_collision_pair('ball:fielder',self,None)
+        game_world.add_collision_pair('ball:defender',self,None)
         play_mode.control.ball=self
 
     def is_less_than(self):
-        return (self.destination[0]-self.x)**2+(self.destination[1]-self.y)**2<=(game_framework.frame_time*ONE_PPS)**2
+        return (self.destination[0]-self.location[0])**2+(self.destination[1]-self.location[1])**2<=(game_framework.frame_time*ONE_PPS)**2
 
     def update(self):
         self.update_z()
         self.update_xy()
     
     def draw(self):
-        self.shadow_image.clip_draw(0,0,68,68,self.x,self.y,4,2)
-        self.image.clip_draw(0,0,68,68,self.x,self.y+self.h,4,4)
+        self.shadow_image.clip_draw(0,0,68,68,self.location[0],self.location[1],4,2)
+        self.image.clip_draw(0,0,68,68,self.location[0],self.location[1]+self.h,4,4)
         draw_rectangle(*self.get_bb())
 
     def get_bb(self):
-        return self.x-2,self.y+self.h-2,self.x+2,self.y+self.h+2
+        return self.location[0]-2,self.location[1]+self.h-2,self.location[0]+2,self.location[1]+self.h+2
     
     def handle_collision(self,group,other):
         if group=='ball:bat':
@@ -159,8 +159,8 @@ class Ball:
 
     def update_xy(self):
         self.set_xy_velocity()
-        self.x+=game_framework.frame_time*ONE_PPS*self.v*math.cos(self.shoot_angle)
-        self.y+=game_framework.frame_time*ONE_PPS*self.v*math.sin(self.shoot_angle)
+        self.location[0]+=game_framework.frame_time*ONE_PPS*self.v*math.cos(self.shoot_angle)
+        self.location[1]+=game_framework.frame_time*ONE_PPS*self.v*math.sin(self.shoot_angle)
 
     def update_z(self):
         if self.is_hit:
@@ -169,6 +169,7 @@ class Ball:
 
     def set_z_velocity(self):
         if self.h<0:
+            print('not out')
             self.h=0
             self.h_v*=-0.5 if (abs(self.h_v/self.h_a)<abs(self.v/self.a))else 0
         else:
@@ -192,7 +193,7 @@ class Ball:
     def calculate_distances(self):
         for t in self.times_when_ball_on_ground:
             distance=ONE_PPS*abs(self.a/2*t**2+self.v*t)
-            location=[self.x+distance*math.cos(self.shoot_angle),self.y+distance*math.sin(self.shoot_angle)]
+            location=[self.location[0]+distance*math.cos(self.shoot_angle),self.location[1]+distance*math.sin(self.shoot_angle)]
             self.distances_when_ball_on_ground.append(distance)
             self.locations_when_ball_on_ground.append(location)
     
