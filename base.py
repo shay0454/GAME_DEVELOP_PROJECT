@@ -28,6 +28,7 @@ class Base_p:
             for runner in play_mode.control.runners:
                 if runner.target_base==self.num:
                     print('you out')
+                    runner.stop()
                     play_mode.control.out_list.append(runner)
                     play_mode.control.runners.remove(runner)
         
@@ -63,10 +64,11 @@ class Base:
         return False
     
     def draw(self):
-        for i in range(len(self.bases)):
-            self.bases[i].draw()
+        for base in self.bases:
+            base.draw()
 
     def update(self):
-        for i in range(len(self.bases)):
-            self.bases[i].update()
+        for base in self.bases:
+            base.location=self.base_locations['base'+str(self.bases.index(base))]
+            base.update()
         

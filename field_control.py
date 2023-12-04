@@ -16,7 +16,10 @@ def is_all_arrive(control):
 class Ready:
     @staticmethod
     def enter(control):
+        control.base_locations=[base.location for base in control.base.bases]                    # base_locations
+        control.batter_init()
         players_destination_init(control)
+
 
     @staticmethod
     def exit(control):
@@ -77,6 +80,10 @@ class End:
     @staticmethod
     def enter(control):
         print('game end')
+        control.time=get_time()
+        for out in control.out_list:
+            game_world.remove_object(out)
+            control.out+=1
         pass
 
     @staticmethod
@@ -85,6 +92,8 @@ class End:
 
     @staticmethod
     def do(control):
+        if get_time()-control.time>3:
+            control.state_machine.change_state(Ready)
         pass
 
 
@@ -139,7 +148,7 @@ class Field_control:
         self.out_list=[]
         self.state_list={'Ready':Ready,'Start':Start,'Hitted':Hitted,'Catch':Catch}
         self.player_state_list={'Idle':Idle,'Run':Run,'Shoot':Shoot,'Hit':Hit,'The_Catcher':The_Catcher}
-        self.players_init()
+        self.defenders_init()
         self.state_machine.cur_state.enter(self)  
                   
     def update(self):
@@ -169,7 +178,7 @@ class Field_control:
 
     def fielders_init(self):                                                                 # fielder 객체들 초기화용
         for i in range(4):
-            player=Player()
+            player=Player('fielder')
             self.fielders.append(player)
             game_world.add_collision_pair('ball:defender',None,player)
         game_world.add_objects(self.fielders,2)
@@ -184,7 +193,7 @@ class Field_control:
         game_world.add_objects(self.basemen,2)
 
     def picker_init(self):
-        picker=Player()
+        picker=Player('picker')
         self.picker.append(picker)
         game_world.add_objects(self.picker,2)
 
@@ -193,11 +202,10 @@ class Field_control:
         self.batter.append(batter)
         game_world.add_objects(self.batter,2)
 
-    def players_init(self):
+    def defenders_init(self):
         self.fielders_init()
         self.basemen_init()
         self.picker_init()
-        self.batter_init()
 
     def draw_ball_on_ground(self):
         for location in self.ball.locations_when_ball_on_ground:

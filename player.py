@@ -17,7 +17,7 @@ def is_less_than_ball(player,b_location,gap):
 
 def check_near_in_ball(player):
     if play_mode.control.ball!=None:
-        if is_less_than_ball(player,play_mode.control.ball.location,72):
+        if is_less_than_ball(player,play_mode.control.ball.location,6*PIXEL_PER_METER):
             player.goto(play_mode.control.ball.location)
 
 PIXEL_PER_METER=8.16
@@ -126,7 +126,7 @@ class Run:
     
     @staticmethod
     def do(player):
-        if player.role=='fielder':
+        if player.role=='fielder'or player.role=='picker':
             check_near_in_ball(player)
         player.frame=(player.frame+player.ACTION_PER_TIME*player.FRAME_PER_ACTION*game_framework.frame_time)%3
         pass
@@ -141,7 +141,7 @@ class Run:
 class Idle:
     @staticmethod
     def enter(player,e):
-        #print('idle')  #
+        print('idle')  #
         player.get_bt()
         player.frame=0  # 프레임 초기화
 
@@ -199,7 +199,7 @@ class Player:
 
     image=None                                      # sprite
 
-    def __init__(self,x=400,y=0,role='defender'):
+    def __init__(self,role='defender',x=400,y=0):
         self.location=[x,y]                           # 기본 좌표
         self.frame=0                                # 프레임
         self.role=role
@@ -238,7 +238,7 @@ class Player:
         self.destination=self.location
         
     def get_bb(self):
-        return self.location[0]-self.size[0]//2,self.location[1]-self.size[1]//2-2,self.location[0]+self.size[0]//2,self.location[1]-self.size[1]//2+2
+        return self.location[0]-self.size[0]//2,self.location[1]-self.size[1]//2,self.location[0]+self.size[0]//2,self.location[1]+self.size[1]//2
     
     def handle_collision(self,group,other):
         if group=='ball:defender'or group=='ball:baseman':
@@ -343,7 +343,8 @@ class Player:
         return BehaviorTree.SUCCESS
 
     def set_v_to_base(self):
-        self.t_=2
+        self.h_v=240
+        self.t_=abs(2*self.h_v/Ball.h_a)
         print(self.base_distance)
         self.ball_v=self.base_distance/self.t_-1/2*Ball.a*self.t_
         print(self.ball_v)
@@ -359,10 +360,11 @@ class Player:
     
     def reset_collsion(self):
         game_world.remove_collision_object(self)
+
         return BehaviorTree.SUCCESS
     
     def check_ball(self):
-        if not check_near_in_ball(self):
+        if not is_less_than_ball(self,play_mode.control.ball,48):
             game_world.add_collision_pair('ball:defender',None,self)
             return BehaviorTree.SUCCESS
         return BehaviorTree.FAIL

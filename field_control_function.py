@@ -21,7 +21,7 @@ def catcher_destination_init(control,catcher):
 
 # batter 도착지 초기화
 def batter_destination_init(control,batter):
-    batter.goto(control.batter_location)
+     batter.goto([*control.batter_location])
 
 # picker 상태를 Shoot으로 변경
 def set_picker_Shoot(control):
@@ -48,7 +48,6 @@ def set_Start(control):
 def defender_stop(control):
     fielder_stop(control)
     picker_stop(control)
-    basemen_destination_init(control,control.basemen)
     
 #투수 현 위치에서 정지
 def picker_stop(control):
@@ -97,7 +96,7 @@ def basemen_location_init(control,basemen):
 
 # batter 위치 초기화
 def batter_location_init(control,batter):
-    batter.location = control.batter_location
+    batter.location = [*control.batter_location]
 
 def players_location_init(control):
     picker_location_init(control,control.picker[0])
