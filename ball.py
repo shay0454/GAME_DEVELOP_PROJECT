@@ -106,13 +106,14 @@ class StateMachine:
 
 
 class Ball:
-    def __init__(self,x,y,shoot_v,angle):
+    a,h_a=-5*8,-100
+    def __init__(self,x,y,shoot_v,angle,h_angle=0):
         self.image=load_image('ball.png')
         self.shadow_image=load_image('ball_shadow.png')
         self.state_machine=StateMachine(self)
-        self.v,self.static_v,self.h_v=shoot_v,shoot_v,0
-        self.a,self.h_a=-5*8,-100
-        self.shoot_angle,self.h_angle=angle,0
+        self.v,self.static_v,self.h_v=shoot_v*math.cos(h_angle),shoot_v,shoot_v*math.sin(h_angle)
+        self.a,self.h_a=Ball.a,Ball.h_a
+        self.shoot_angle,self.h_angle=angle,h_angle
         self.location,self.h=[x,y],12
         self.is_hit=False
         self.cur_state=0
@@ -120,7 +121,10 @@ class Ball:
         self.state_point,self.times_when_ball_on_ground,self.distances_when_ball_on_ground,self.locations_when_ball_on_ground=[],[],[],[]
         self.state_machine.start()
         game_world.add_collision_pair('ball:defender',self,None)
+        game_world.add_collision_pair('ball:baseman',self,None)
         play_mode.control.ball=self
+        if play_mode.control.state_machine.cur_state==play_mode.control.state_list['Catch']:
+            self.is_hit=True
 
     def is_less_than(self):
         return (self.destination[0]-self.location[0])**2+(self.destination[1]-self.location[1])**2<=(game_framework.frame_time*ONE_PPS)**2
@@ -144,11 +148,12 @@ class Ball:
                 self.calculate_times()
                 self.calculate_distances()
                 play_mode.control.state_machine.change_state(play_mode.control.state_list['Hitted'])
-                play_mode.control.runner[-1].state_machine.change_state(play_mode.control.player_state_list['Idle'])
+                play_mode.control.runners[-1].state_machine.change_state(play_mode.control.player_state_list['Idle'])
                 self.is_hit=True
-        if group=='ball:defender':
+        if group=='ball:defender' or group=='ball:baseman':
             if self.h<=12:
                 game_world.remove_object(self)
+                play_mode.control.ball=None
                 del self
 
     def set_element(self):

@@ -171,7 +171,7 @@ class Batter:
         self.frame=0                                # 프레임
         self.sprite_option=['',1]                   # 'h': 왼쪽, '': 오른쪽, -1 : 다운, 1 : 업
         self.destination=[self.location[0],self.location[1]]            # 도착지점
-        self.size=[32,24]                           # player draw 사이즈
+        self.size=[24,32]                           # player draw 사이즈
         self.swing,self.is_click=False,False        # 스윙 유무
         self.hit_delay=2
         self.target_base=1

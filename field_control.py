@@ -74,7 +74,19 @@ class Catch:
         pass
 
 class End:
-    pass
+    @staticmethod
+    def enter(control):
+        print('game end')
+        pass
+
+    @staticmethod
+    def exit(control):
+        pass
+
+    @staticmethod
+    def do(control):
+        pass
+
 
 class Field_statement:
 
@@ -113,18 +125,18 @@ class Field_statement:
 class Field_control:
             
     def __init__(self):
+        self.strike,self.out=0,0      
         self.state_machine=Field_statement(self)
         self.base=Base()
         self.base_locations=[base.location for base in self.base.bases]                    # base_locations
-        self.strike,self.out=0,0      
-        self.base_point=[[400,90],[560+4,240],[400,400+12],[240-4,240]]                    # base_point
         self.fielder_locations=[[250,440],[400,530],[550,440]]                             
         self.catcher_location,self.picker_location,self.batter_location=[400,30],[400,230],[400-25,70]
         self.allow_catch_list=[]
         self.ball=None
         self.tf_hit=False
-        self.batter,self.picker,self.runner,self.fielders,self.basemen=[],[],[],[],[]
-        self.players=[self.batter,self.runner,self.picker,self.basemen,self.fielders]            # players
+        self.batter,self.picker,self.runners,self.fielders,self.basemen=[],[],[],[],[]
+        self.players=[self.batter,self.runners,self.picker,self.basemen,self.fielders]            # players
+        self.out_list=[]
         self.state_list={'Ready':Ready,'Start':Start,'Hitted':Hitted,'Catch':Catch}
         self.player_state_list={'Idle':Idle,'Run':Run,'Shoot':Shoot,'Hit':Hit,'The_Catcher':The_Catcher}
         self.players_init()
@@ -149,7 +161,7 @@ class Field_control:
         elif event.type==SDL_KEYDOWN and event.key==SDLK_1:
             print(1)
         if event.type==SDL_MOUSEBUTTONDOWN:
-            for player in self.runner:
+            for player in self.runners:
                 player.state_machine.handle_event(('INPUT',event))
 
     def Skip_Ready(self):
@@ -167,7 +179,8 @@ class Field_control:
         for i in range(4):
             player=Player()
             self.basemen.append(player)
-            game_world.add_collision_pair('ball:defender',None,player)
+            game_world.add_collision_pair('ball:baseman',None,player)
+            game_world.add_collision_pair('base:baseman',None,player)
         game_world.add_objects(self.basemen,2)
 
     def picker_init(self):
@@ -200,6 +213,13 @@ class Field_control:
     def fielder_goto_ball_allow(self):
             for fielder in self.fielders:
                 self.fielder_check_point(fielder)
+        
+    def find_base(self):
+        for runner in self.runners:
+            if not self.base.is_player_in_base(runner):
+                return runner.target_base
+        self.state_machine.change_state(End)
+        return -1
 
 def distance_less_than(x,y,r):
     return True if x*x+y*y<r*r else False

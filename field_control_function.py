@@ -1,3 +1,4 @@
+from pico2d import delay
 
 # picker 도착지 초기화
 def picker_destination_init(control,picker):
@@ -64,8 +65,8 @@ def baseman_stop(control):
 
 def batter_run(control):
     batter=control.batter[0]
-    control.runner.append(batter)
-    control.runner[-1].goto([560,230])
+    control.runners.append(batter)
+    control.runners[-1].goto([560,230])
     control.batter=[]
 
 # 모든 player 도착지 초기화

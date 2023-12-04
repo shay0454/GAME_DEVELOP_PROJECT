@@ -7,8 +7,10 @@ class Base_p:
         self.location=[x,y] #x,y
         self.num=num
         self.player=None
+        self.baseman=None
         game_world.add_object(self,1)
         game_world.add_collision_pair('base:player',self,None)
+        game_world.add_collision_pair('base:baseman',self,None)
 
     def draw(self):
         draw_rectangle(*self.get_bb())
@@ -20,11 +22,23 @@ class Base_p:
     def update(self):
         if self.player!=None and not game_world.collide(self,self.player):
             self.player=None
+        if self.baseman!=None and not game_world.collide(self,self.baseman):
+            self.baseman=None
+        if self.baseman!=None and self.baseman.ball_picked:
+            for runner in play_mode.control.runners:
+                if runner.target_base==self.num:
+                    print('you out')
+                    play_mode.control.out_list.append(runner)
+                    play_mode.control.runners.remove(runner)
+        
 
     def handle_collision(self,group,other):
         if group=='base:player' and self.player!=other:
             print('in base')
             self.player=other
+        elif group=='base:baseman' and self.baseman!=other:
+            print('in base')
+            self.baseman=other
 
 class Base:
     def __init__(self):
@@ -42,6 +56,12 @@ class Base:
         player.goto(self.base_locations['base'+str(player.target_base)])
         pass
 
+    def is_player_in_base(self,player):
+        for base in self.bases:
+            if player==base.player:
+                return True
+        return False
+    
     def draw(self):
         for i in range(len(self.bases)):
             self.bases[i].draw()
