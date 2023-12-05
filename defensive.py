@@ -13,6 +13,9 @@ def check_near_in_ball(player):
     if play_mode.control.ball!=None:
         if is_less_than_ball(player,play_mode.control.ball.location,9*PIXEL_PER_METER):
             player.goto(play_mode.control.ball.location)
+    else:
+        player.stop()
+    
 
 def lower_than_player(player,height):
     return player.size[1]>height
@@ -45,6 +48,8 @@ class Catch:
     def enter(player,e):
         player.get_bt()
         player.catch_time=get_time()
+        play_mode.control.ball_picked=True
+        play_mode.control.location_player_with_ball=player.location
         player.stop()
         if not play_mode.control.is_ground:
             play_mode.control.out_list+=[*play_mode.control.batter]
@@ -52,11 +57,13 @@ class Catch:
     
     @staticmethod
     def exit(player,e):
+        play_mode.control.ball_picked=False
+        play_mode.control.location_player_with_ball=[]
         pass
 
     @staticmethod
     def do(player):
-        player.frame=(player.frame+player.ACTION_PER_TIME*player.FRAME_PER_ACTION*game_framework.frame_time*1/2)
+        player.frame=(player.frame+player.ACTION_PER_TIME*player.FRAME_PER_ACTION*game_framework.frame_time)
         pass
 
     @staticmethod
@@ -226,6 +233,7 @@ class Player:
         self.location=[x,y]                           # 기본 좌표
         self.frame=0                                # 프레임
         self.role=role
+        self.point_location=[]
         self.sprite_option=['',1]                   # 'h': 왼쪽, '': 오른쪽,  -1 : 다운, 1 : 업
         self.destination=[self.location[0],self.location[1]]            # 도착지점
         self.size=[24,32]                           # player draw 사이즈
@@ -258,7 +266,7 @@ class Player:
         draw_rectangle(*self.get_bb())
 
     def stop(self):
-        self.destination=self.location
+        self.destination=[*self.location]
         
     def get_bb(self):
         return self.location[0]-self.size[0]//2,self.location[1]-self.size[1]//2,self.location[0]+self.size[0]//2,self.location[1]+self.size[1]//2
@@ -267,12 +275,12 @@ class Player:
         return not ball.is_touch_ground and  self!=play_mode.control.basemen[0]
     
     def handle_collision(self,group,other):
-        if group=='ball:the_catcher':
-            self.ball_picked=True
-            play_mode.control.is_strike=True
-        elif group=='ball:defender'or group=='ball:baseman':
+        if group=='ball:defender':
             if lower_than_player(self,other.h):
                 set_player_catch_the_ball(self)
+                if self.role=='The_Catcher':
+                    play_mode.control.is_strike=True
+
 
                 
 
@@ -285,7 +293,6 @@ class Player:
             return
         ball=Ball(self.location[0],self.location[1],cur_v,angle,h_angle)
         game_world.add_object(ball,3)
-        game_world.add_collision_pair('ball:bat',ball,None)
 
     def set_pps(self):
         self.RUN_SPEED_KMPH=24  #24km/h
@@ -348,61 +355,52 @@ class Player:
 #베이스 찾기
     def find_base(self):
         self.base_for_shoot=play_mode.control.find_base()
-        if self.base_for_shoot==-1:
-            self.state_machine.change_state(Idle,('CHANGE',0))
-            return BehaviorTree.FAIL
-        self.destination=play_mode.control.base_locations[self.base_for_shoot]
+        print(self.base_for_shoot)
         return BehaviorTree.SUCCESS
     
     def check_base(self):
-        if self.is_less_than(PIXEL_PER_METER*12):
+        if self.base_for_shoot==-1:
             self.state_machine.change_state(Idle,('CHANGE',0))
+            play_mode.control.state_machine.change_state(play_mode.control.state_list['End'])
             return BehaviorTree.FAIL
         else:
             return BehaviorTree.SUCCESS
-
+        
 #베이스 각도 설정
     def set_angle_base_for_shoot(self):
-        location=play_mode.control.base_locations[self.base_for_shoot]
-        location[1]+=12
-        self.rad=math.atan2(location[1]-self.location[1],location[0]-self.location[0])
-        self.base_distance=math.sqrt((location[1]-self.location[1])**2+(location[0]-self.location[0])**2)
+        self.time=get_time()
+        self.point_location=play_mode.control.base_locations[self.base_for_shoot]
+        self.point_location[1]+=12
+        self.shoot_angle=math.atan2(self.point_location[1]-self.location[1],self.point_location[0]-self.location[0])
+        self.base_distance=math.sqrt((self.point_location[1]-self.location[1])**2+(self.point_location[0]-self.location[0])**2)
         return BehaviorTree.SUCCESS
 
     def set_v_to_base(self):
-        self.h_v=240
-        self.t_=abs(2*self.h_v/Ball.h_a)
-        self.ball_v=self.base_distance/self.t_-1/2*Ball.a*self.t_
+        self.ball_v=170
         return BehaviorTree.SUCCESS
 #   
     def do_pass(self):
-        self.fire_ball(self.ball_v,self.rad,0)
+        self.fire_ball(self.ball_v,self.shoot_angle,0)
         self.ball_picked=False
         return BehaviorTree.SUCCESS
-
-    def set_point(self):
-        return BehaviorTree.SUCCESS 
     
     def reset_collsion(self):
         game_world.remove_collision_object(self)
-
         return BehaviorTree.SUCCESS
     
     def check_ball(self):
-        if play_mode.control.ball==None:
+        if play_mode.control.ball!=None and not is_less_than_ball(self,play_mode.control.ball.location,32) and (self.role=='defender'or self.role=='picker'):
             game_world.add_collision_pair('ball:defender',None,self)
-            return BehaviorTree.SUCCESS
-        if not is_less_than_ball(self,play_mode.control.ball.location,48):
-            game_world.add_collision_pair('ball:defender',None,self)
-            return BehaviorTree.SUCCESS
-        return BehaviorTree.FAIL
+        elif (self.role=='defender'or self.role=='picker'):
+            game_world.remove_collision_object(self)
+        return BehaviorTree.SUCCESS
     
     #Condition : 
     def is_frame_over_catch(self):
         if self.frame>=4:
             return BehaviorTree.SUCCESS
         else:
-            return BehaviorTree.FAIL
+            return BehaviorTree.RUNNING
         
     def is_arrive(self):
         if self.destination==[self.location[0],self.location[1]]:
@@ -464,7 +462,6 @@ class Player:
 
     #define :
     def build_behavior_tree(self):
-        a_0=Action('체크 포인트',self.set_point)
         a_s1=Action('상태를 Idle로 변경',self.change_state_Idle)
         a_s2=Action('상태를 Run으로 변경',self.change_state_Run)
         a_s3=Action('상태를 R_Shoot으로 변경',self.change_state_Ready_to_Shoot)
@@ -476,12 +473,13 @@ class Player:
         a_s3_1=Action('기다릴 시간 셋팅',self.set_waiting_time_and_time)
         a_s3_2=Action('기다림',self.waiting_shoot)
         a_s3_3=Action('슈팅',self.do_shoot)
+        a_s5_0=Action('프레임이 넘었는가 (catch)',self.is_frame_over_catch)
         a_s5_1=Action('알맞은 베이스 찾기',self.find_base)
         a_s5_2=Action('베이스 각도 설정',self.set_angle_base_for_shoot)
         a_s5_3=Action('속도설정 (베이스)',self.set_v_to_base)
         a_s5_4=Action('베이스로 패스',self.do_pass)
         a_s5_5=Action('충돌 삭제',self.reset_collsion)
-        a_s5_6=Action('충돌 리셋',self.check_ball)
+        a__1=Action('충돌 리셋',self.check_ball)
         a_s5_1_1=Action('거리 확인',self.check_base)
 
         c1_1=Condition('도착하였는가',self.is_arrive)
@@ -489,12 +487,11 @@ class Player:
         c_s1=Condition('Idle인가',self.is_state_Idle)
         c_s2=Condition('Run인가',self.is_state_Run)
         c3_1=Condition('이미 던졌는가',self.is_not_already_shoot)
-        c5_1=Condition('프레임이 넘었는가 (catch)',self.is_frame_over_catch)
         self.SEQ_is_Idle=Sequence('Idle 상태인지 확인',c1_1,a_s1)
-        self.SEQ_Idle=Sequence('기본상태작동',)
+        self.SEQ_Idle=Sequence('기본상태작동',a__1)
 
         self.SEQ_is_Run=Sequence('Run 상태인지 확인',c1_2,a_s2)
-        self.SEQ_do_Run=Sequence('Run 상태 활동',a_s2_1,a_s2_2,a_s2_3)
+        self.SEQ_do_Run=Sequence('Run 상태 활동',a__1,a_s2_1,a_s2_2,a_s2_3)
         self.SEL_Run=Selector('Run 상태 체크 후 활동',self.SEQ_is_Idle,self.SEQ_do_Run)
 
         self.SEQ_set_already_Shoot=Sequence('R-Shoot 활동',c3_1,a_s4)
@@ -513,7 +510,7 @@ class Player:
         self.bt_list.append(BehaviorTree(self.SEQ_set_Shoot))
         self.SEQ_set_The_Catcher=Sequence('포수 상태 활동',self.SEQ_is_Run)
         self.bt_list.append(BehaviorTree(self.SEQ_set_The_Catcher))
-        self.SEQ_set_Catch=Sequence('공을 잡은 후 상태 활동',a_s5_1,a_s5_1_1,a_s5_2,a_s5_3,c5_1,a_s5_4,a_s5_5,a_0,a_s5_6,a_s1)
+        self.SEQ_set_Catch=Sequence('패스 활동',a_s5_1,a_s5_1_1,a_s5_2,a_s5_3,a_s5_0,a_s5_4,a_s5_5,a_s1)
         self.bt_list.append(BehaviorTree(self.SEQ_set_Catch))
 
         self.bt=BehaviorTree(self.SEL_set_Idle)
