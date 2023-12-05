@@ -281,12 +281,10 @@ class Batter:
 
     def create_bat(self):
         self.t=get_time()
-        print('create_bat')
         self.bat=Bat(self.location[0]+(-6 if self.sprite_option[0]==''else 6),self.location[1])
         BehaviorTree.SUCCESS
 
     def do_hitting(self):
-        print('do_hii',get_time()-self.t)
         self.frame=(self.frame+ACTION_PER_TIME*3*FRAME_PER_ACTION*game_framework.frame_time)
         if self.frame>=6:
             self.frame=5
@@ -309,6 +307,8 @@ class Batter:
     
     def delete_bat(self):
         if self.bat!=None:
+            for Craw in self.bat.bat_list:
+                game_world.remove_object(Craw)
             game_world.remove_object(self.bat)
             self.bat=None
         return BehaviorTree.SUCCESS
