@@ -25,8 +25,9 @@ class Base_p:
         if self.baseman!=None and not game_world.collide(self,self.baseman):
             self.baseman=None
         if self.baseman!=None and self.baseman.ball_picked:
+            print()
             for runner in play_mode.control.runners:
-                if runner.target_base==self.num:
+                if runner.target_base==self.num and self.player!=runner:
                     print('you out')
                     runner.stop()
                     play_mode.control.out_list.append(runner)
@@ -37,7 +38,13 @@ class Base_p:
         if group=='base:player' and self.player!=other:
             print('in base')
             self.player=other
-        elif group=='base:baseman' and self.baseman!=other:
+            if self.num==3:
+                other.check=True
+            elif self.num==0 and other.check:
+                game_world.remove_object(other)
+                play_mode.control.score+=1
+                
+        elif group=='base:fielder' and self.baseman!=other:
             print('in base')
             self.baseman=other
 
