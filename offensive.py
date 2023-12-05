@@ -10,12 +10,13 @@ from bat import Bat
 import random
 from behavior_tree import BehaviorTree, Action, Sequence, Condition, Selector
 def is_swing(player,e):
+    print('swing')
     return e[0]=='INPUT'and e[1].type==SDL_KEYDOWN and e[1].key==SDLK_SPACE
 
 def is_not_arrive(player,e):
     return e[0]=='CHECK' and player.destination!=player.location
 
-def is_arrive(player,e):
+def is_arrive_(player,e):
     return e[0]=='CHECK' and player.destination==player.location
 
 def mouse_in(player,e):
@@ -65,11 +66,11 @@ class Hit:
     @staticmethod
     def enter(player,e):
         get_bt(player)
+        player.swing=False
         player.frame=0
     
     @staticmethod
     def exit(player,e):
-
         pass
 
     @staticmethod
@@ -173,9 +174,10 @@ class Batter:
         self.destination=[self.location[0],self.location[1]]            # 도착지점
         self.size=[24,32]                           # player draw 사이즈
         self.swing,self.is_click=False,False        # 스윙 유무
-        self.hit_delay=2
+        self.hit_delay=0.7
         self.target_base=1
         self.bat=None
+        self.check=False
         self.base_dir=1
         self.bt_list=[]
         self.build_behavior_tree()
@@ -199,12 +201,10 @@ class Batter:
         self.destination=[destination[0],destination[1]+self.size[1]//2]    
 
     def get_bb(self):
-        return self.location[0]-self.size[0]//2,self.location[1]-self.size[1]//2-2,self.location[0]+self.size[0]//2,self.location[1]-self.size[1]//2+2
+        return self.location[0]-self.size[0]//2,self.location[1]-self.size[1]//2,self.location[0]+self.size[0]//2,self.location[1]-self.size[1]//2+4
 
     def handle_collision(self,group,other):
         if group == 'base:player':
-            self.in_base=True
-            self.check_base=True
             pass
 
     def stop(self): # 익수들이 공을 잡은 후에 쓸 명령
@@ -280,10 +280,13 @@ class Batter:
             return BehaviorTree.FAIL
 
     def create_bat(self):
-        self.bat=Bat(self.location[0]+(-3 if self.sprite_option[0]==''else 3),self.location[1])
-        pass
+        self.t=get_time()
+        print('create_bat')
+        self.bat=Bat(self.location[0]+(-6 if self.sprite_option[0]==''else 6),self.location[1])
+        BehaviorTree.SUCCESS
 
     def do_hitting(self):
+        print('do_hii',get_time()-self.t)
         self.frame=(self.frame+ACTION_PER_TIME*3*FRAME_PER_ACTION*game_framework.frame_time)
         if self.frame>=6:
             self.frame=5
@@ -305,9 +308,9 @@ class Batter:
         return BehaviorTree.SUCCESS
     
     def delete_bat(self):
-        for Craw_bat in self.bat.bat_list:
-            game_world.remove_object(Craw_bat)
-        game_world.remove_object(self.bat)
+        if self.bat!=None:
+            game_world.remove_object(self.bat)
+            self.bat=None
         return BehaviorTree.SUCCESS
     
     def change_state_Hit(self):
@@ -352,7 +355,7 @@ class Batter:
         self.bt_list.append(BehaviorTree(self.SEL_set_Idle))
         self.SEL_set_Run=Selector('Run 상태 활동',self.SEQ_is_Idle,self.SEQ_Run)
         self.bt_list.append(BehaviorTree(self.SEL_set_Run))
-        self.SEQ_set_Hit=Sequence('스윙 준비 상태 활동',)
+        self.SEQ_set_Hit=Sequence('스윙 준비 상태 활동',self.SEQ_is_Run)
         self.bt_list.append(BehaviorTree(self.SEQ_set_Hit))
         self.SEL_set_Hitting=Sequence('스윙 중 상태 활동',self.SEQ_do_Hitting,self.SEQ_is_Hit)
         self.bt_list.append(BehaviorTree(self.SEL_set_Hitting))
