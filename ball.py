@@ -8,6 +8,8 @@ def is_catch(ball):
     pass
 def is_stopped(ball):
     return ball.v==0
+def is_hitted(ball):
+    return ball.is_hit
 
 def is_move(ball):
     return ball.v!=0
@@ -23,10 +25,11 @@ ONE_KMPH=1
 ONE_MPM=(ONE_KMPH*1000/60)
 ONE_MPS=(ONE_MPM/60)
 ONE_PPS=(ONE_MPS*PIXEL_PER_METER)
-class Stopped:
+
+class Ball_hit:
     @staticmethod
     def enter(ball):
-        print('stop')
+       
         pass
 
     @staticmethod
@@ -80,9 +83,6 @@ class StateMachine:
         self.ball=ball
         self.cur_state=Moving
         self.state_table={
-            Stopped : {is_catch:Catched,is_move:Moving},
-            Moving:{is_stopped:Stopped},
-            Catched:{is_passed:Moving}
         }
 
     def start(self):
@@ -90,20 +90,14 @@ class StateMachine:
 
     def update(self):
         self.cur_state.do(self.ball)
-        self.handle_event()
 
     def draw(self):
         self.cur_state.draw(self.ball)
 
-    def handle_event(self):
-        for ckeck_event, next_state in self.state_table[self.cur_state].items():
-            if ckeck_event(self.ball):
-                self.cur_state.exit(self.ball)
-                self.cur_state=next_state
-                self.cur_state.enter(self.ball)
-                return True
-        return False
-
+    def change_state(self,next_state):
+        self.cur_state.exit(self.ball)
+        self.cur_state=next_state
+        self.cur_state.enter(self.ball)
 
 class Ball:
     a,h_a=-5*8,-100
@@ -115,13 +109,15 @@ class Ball:
         self.a,self.h_a=Ball.a,Ball.h_a
         self.shoot_angle,self.h_angle=angle,h_angle
         self.location,self.h=[x,y],12
-        self.is_hit=False
+        self.is_hit,self.is_touch_ground,self.check,self.is_stop=False,False,False,False
         self.cur_state=0
         self.moving_state=['sky','allow','on_ground','stop']
         self.state_point,self.times_when_ball_on_ground,self.distances_when_ball_on_ground,self.locations_when_ball_on_ground=[],[],[],[]
         self.state_machine.start()
         game_world.add_collision_pair('ball:defender',self,None)
         game_world.add_collision_pair('ball:baseman',self,None)
+        game_world.add_collision_pair('ball:the_catcher',self,None)
+        game_world.add_collision_pair('ball:bat',self,None)
         play_mode.control.ball=self
         if play_mode.control.state_machine.cur_state==play_mode.control.state_list['Catch']:
             self.is_hit=True
@@ -130,6 +126,7 @@ class Ball:
         return (self.destination[0]-self.location[0])**2+(self.destination[1]-self.location[1])**2<=(game_framework.frame_time*ONE_PPS)**2
 
     def update(self):
+        self.state_machine.update()
         self.update_z()
         self.update_xy()
     
@@ -143,24 +140,23 @@ class Ball:
     
     def handle_collision(self,group,other):
         if group=='ball:bat':
-            if not self.is_hit:
-                self.set_element()
+            if not self.check:
+                self.is_hit=True
+                play_mode.control.is_hit=True
+                self.shoot_angle=other.rad+PI/2+PI*1/12*random.random()
+                self.v=random.randint(140,170)        # 3차원 속도 설정
+                self.h_angle=PI/180*random.randint(25,35)  # 높이 각도 설정
+                self.h_v,self.v=self.v*math.sin(self.h_angle),self.v*math.cos(self.h_angle) # 높이 각도에 따른 xy평면과 y영역의 속도 설정
+                self.check,self.stop=True,False
                 self.calculate_times()
                 self.calculate_distances()
-                play_mode.control.state_machine.change_state(play_mode.control.state_list['Hitted'])
-                play_mode.control.runners[-1].state_machine.change_state(play_mode.control.player_state_list['Idle'])
-                self.is_hit=True
-        if group=='ball:defender' or group=='ball:baseman':
-            if self.h<=12:
+
+        if group=='ball:defender':
+            if self.h<=32:
                 game_world.remove_object(self)
                 play_mode.control.ball=None
                 del self
 
-    def set_element(self):
-        self.v=random.randint(140,170)        # 3차원 속도 설정
-        self.h_angle=PI/180*random.randint(25,35)  # 높이 각도 설정
-        self.h_v,self.v=self.v*math.sin(self.h_angle),self.v*math.cos(self.h_angle) # 높이 각도에 따른 xy평면과 y영역의 속도 설정
-        self.shoot_angle=play_mode.control.batter[0].bat.rad+PI/2+PI*1/12*random.random() #xy 날아가는 방향 설정
 
     def update_xy(self):
         self.set_xy_velocity()
@@ -174,7 +170,8 @@ class Ball:
 
     def set_z_velocity(self):
         if self.h<0:
-            print('not out')
+            print('ground')
+            play_mode.control.is_ground=True
             self.h=0
             self.h_v*=-0.5 if (abs(self.h_v/self.h_a)<abs(self.v/self.a))else 0
         else:
@@ -187,7 +184,7 @@ class Ball:
         self.time=get_time() # 실제 체크용 
         heighest_time=abs(self.h_v/self.h_a)  #처음때의 높이 최고점일 때 시간
         height_h=self.h_a/2*heighest_time**2+self.h_v*heighest_time+12 #최고점에서의 z 높이
-        frist_on_ground_h_time=math.sqrt(abs(height_h/self.h_a*2))+heighest_time #다시 내려올 때의 시간 + 최고점 시간
+        frist_on_ground_h_time=math.sqrt(abs(height_h/self.h_a*2))+heighest_time-0.07 #다시 내려올 때의 시간 + 최고점 시간
         self.times_when_ball_on_ground.append(frist_on_ground_h_time)
         v_on_ground=abs(self.h_a*(frist_on_ground_h_time-heighest_time))
         while v_on_ground*0.5>40: #0.5=탄성계수

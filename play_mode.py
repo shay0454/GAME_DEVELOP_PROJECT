@@ -32,11 +32,12 @@ def finish():
 
 
 def update():
-    control.update()
     game_world.update()
+    control.update()
     game_world.handle_collisions()
 
 def draw():
     clear_canvas()
     game_world.render()
+    control.draw()
     update_canvas()
