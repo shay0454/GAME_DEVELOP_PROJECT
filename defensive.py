@@ -6,28 +6,48 @@ import game_world
 import play_mode
 from behavior_tree import BehaviorTree, Action, Sequence, Condition, Selector
 from ball import Ball
-def is_swing(player,e):
-    return e[0]=='INPUT'and e[1].type==SDLK_DOWN and e[1].key==SDLK_SPACE
-
-def is_click(player,e):
-    return e[0]=='INPUT' and e[1].type==SDL_MOUSEBUTTONDOWN and player.location[0]>=e[1].location[0]-player.size[0]/2 and player.location[0]<=e[1].location[0]+player.size[0]/2 and player.location[1]>=600-e[1].location[1]-1-player.size[0]/2 and player.location[1]<=600-e[1].location[1]-1+player.size[0]/2
-
 def is_less_than_ball(player,b_location,gap):
     return ((b_location[0]-player.location[0])**2+(b_location[1]-player.location[1])**2<=(gap)**2)
 
 def check_near_in_ball(player):
     if play_mode.control.ball!=None:
-        if is_less_than_ball(player,play_mode.control.ball.location,6*PIXEL_PER_METER):
+        if is_less_than_ball(player,play_mode.control.ball.location,9*PIXEL_PER_METER):
             player.goto(play_mode.control.ball.location)
+
+def lower_than_player(player,height):
+    return player.size[1]>height
+
+def do_out_batter(control):
+    control.out_list.append(control.batter[0])
+    if control.batter[0] in control.runners:
+        control.runners.remove(control.batter[0])
+    control.player_stop(control.batter[0])
+
+def set_field_control_Catch(control):
+    if control.state_machine.cur_state==control.state_list['Hitted']:
+        control.state_machine.change_state(control.state_list['Catch'])
+
+def set_field_control_End(control):
+    if control.state_machine.cur_state==control.state_list['Start']:
+        control.state_machine.change_state(control.state_list['End'])   
+
+def set_player_catch_the_ball(player):
+    player.ball_picked=True
+    if player.state_machine.cur_state!=The_Catcher:
+        player.state_machine.change_state(Catch,('CHANGE',0))
 
 PIXEL_PER_METER=8.16
 
 PI=math.pi
+is_check=False
 class Catch:
     @staticmethod
     def enter(player,e):
         player.get_bt()
         player.catch_time=get_time()
+        player.stop()
+        if not play_mode.control.is_ground:
+            play_mode.control.out_list+=[*play_mode.control.batter]
         player.frame=0
     
     @staticmethod
@@ -36,7 +56,7 @@ class Catch:
 
     @staticmethod
     def do(player):
-        player.frame+=(player.frame+player.ACTION_PER_TIME*player.FRAME_PER_ACTION*game_framework.frame_time*1/4)
+        player.frame=(player.frame+player.ACTION_PER_TIME*player.FRAME_PER_ACTION*game_framework.frame_time*1/2)
         pass
 
     @staticmethod
@@ -58,10 +78,15 @@ class The_Catcher:
     def do(player):
         if not player.ball_picked:
             return
-        player.frame+=(player.frame+player.ACTION_PER_TIME*player.FRAME_PER_ACTION*game_framework.frame_time*1/4)
-        if player.frame>=4:
+        if player.frame<2:
+            player.frame=(player.frame+player.ACTION_PER_TIME*player.FRAME_PER_ACTION*game_framework.frame_time*1/2)
+        else:
+            player.time=get_time()
             print('strike')
-            player.state_machine.change(Idle,('CHANGE',0))
+            play_mode.control.is_strike=True
+            player.ball_picked=False
+            if get_time()-player.time>1:
+                player.frame=0
 
     @staticmethod
     def draw(player):
@@ -120,8 +145,6 @@ class Run:
 
     @staticmethod
     def exit(player,e):
-        if is_click(player,e):  # 클릭했는가
-            pass
         pass
     
     @staticmethod
@@ -198,7 +221,7 @@ class StateMachine:
 class Player:
 
     image=None                                      # sprite
-
+    check_tf=False
     def __init__(self,role='defender',x=400,y=0):
         self.location=[x,y]                           # 기본 좌표
         self.frame=0                                # 프레임
@@ -240,14 +263,18 @@ class Player:
     def get_bb(self):
         return self.location[0]-self.size[0]//2,self.location[1]-self.size[1]//2,self.location[0]+self.size[0]//2,self.location[1]+self.size[1]//2
     
+    def get_bool_is_batter_out(self,ball):
+        return not ball.is_touch_ground and  self!=play_mode.control.basemen[0]
+    
     def handle_collision(self,group,other):
-        if group=='ball:defender'or group=='ball:baseman':
-            if other.h<=12:
-                self.ball_picked=True
-                print('I have')
-                self.state_machine.change_state(Catch,('CHANGE',0))
-                if play_mode.control.state_machine.cur_state==play_mode.control.state_list['Hitted']:
-                    play_mode.control.state_machine.change_state(play_mode.control.state_list['Catch'])
+        if group=='ball:the_catcher':
+            self.ball_picked=True
+            play_mode.control.is_strike=True
+        elif group=='ball:defender'or group=='ball:baseman':
+            if lower_than_player(self,other.h):
+                set_player_catch_the_ball(self)
+
+                
 
     # 도착점 변경 함수
     def goto(self,destination):
@@ -307,7 +334,7 @@ class Player:
             self.location[1]+=(game_framework.frame_time*self.RUN_SPEED_PPS)*math.sin(self.rad)
             return BehaviorTree.SUCCESS
         else:
-            self.location=self.destination
+            self.location=[*self.destination]
             return BehaviorTree.SUCCESS
 
 
@@ -345,9 +372,7 @@ class Player:
     def set_v_to_base(self):
         self.h_v=240
         self.t_=abs(2*self.h_v/Ball.h_a)
-        print(self.base_distance)
         self.ball_v=self.base_distance/self.t_-1/2*Ball.a*self.t_
-        print(self.ball_v)
         return BehaviorTree.SUCCESS
 #   
     def do_pass(self):
@@ -356,7 +381,7 @@ class Player:
         return BehaviorTree.SUCCESS
 
     def set_point(self):
-        return BehaviorTree.RUNNING
+        return BehaviorTree.SUCCESS 
     
     def reset_collsion(self):
         game_world.remove_collision_object(self)
@@ -364,7 +389,10 @@ class Player:
         return BehaviorTree.SUCCESS
     
     def check_ball(self):
-        if not is_less_than_ball(self,play_mode.control.ball,48):
+        if play_mode.control.ball==None:
+            game_world.add_collision_pair('ball:defender',None,self)
+            return BehaviorTree.SUCCESS
+        if not is_less_than_ball(self,play_mode.control.ball.location,48):
             game_world.add_collision_pair('ball:defender',None,self)
             return BehaviorTree.SUCCESS
         return BehaviorTree.FAIL
@@ -407,7 +435,7 @@ class Player:
             return BehaviorTree.FAIL
         
     def set_waiting_time_and_time(self):
-        self.waiting_time=random.randint(10,50)/10
+        self.waiting_time=random.randint(10,20)/10
         self.set_time=get_time()
         return BehaviorTree.SUCCESS
     
@@ -483,7 +511,7 @@ class Player:
         self.bt_list.append(BehaviorTree(self.SEQ_is_already_Shoot))
         self.SEQ_set_Shoot=Sequence('Shoot 상태 활동',self.SEL_Shoot)
         self.bt_list.append(BehaviorTree(self.SEQ_set_Shoot))
-        self.SEQ_set_The_Catcher=Sequence('포수 상태 활동',)
+        self.SEQ_set_The_Catcher=Sequence('포수 상태 활동',self.SEQ_is_Run)
         self.bt_list.append(BehaviorTree(self.SEQ_set_The_Catcher))
         self.SEQ_set_Catch=Sequence('공을 잡은 후 상태 활동',a_s5_1,a_s5_1_1,a_s5_2,a_s5_3,c5_1,a_s5_4,a_s5_5,a_0,a_s5_6,a_s1)
         self.bt_list.append(BehaviorTree(self.SEQ_set_Catch))
