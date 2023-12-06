@@ -20,6 +20,7 @@ class Craw_Bat:
         self.size=size
         self.radius=radius
         game_world.add_collision_pair('ball:bat',None,self)
+        game_world.add_object(self,2)
 
     def update(self):
         self.rad=self.The_bat.rad
@@ -45,8 +46,7 @@ class Bat:
         game_world.add_object(self)
 
     def update(self):
-        print(self.rad/PI)
-        if self.rad<=8/3*PI:
+        if self.rad<=9/3*PI:
             self.rad+=TIME_PER_ACTION*FRAME_PER_ACTION*game_framework.frame_time*3*PI/2#self.check_rad_v()
         else:
             return

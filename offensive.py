@@ -208,7 +208,8 @@ class Batter:
             pass
 
     def stop(self): # 익수들이 공을 잡은 후에 쓸 명령
-        self.destination=[self.location[0],self.location[1]]
+        self.destination=self.location
+        self.state_machine.change_state(Idle,('Change',0))
 
     # Action :
     def change_state_Idle(self):

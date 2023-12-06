@@ -10,7 +10,7 @@ class Base_p:
         self.baseman=None
         game_world.add_object(self,1)
         game_world.add_collision_pair('base:player',self,None)
-        game_world.add_collision_pair('base:baseman',self,None)
+        game_world.add_collision_pair('base:defender',self,None)
 
     def draw(self):
         draw_rectangle(*self.get_bb())
@@ -18,22 +18,14 @@ class Base_p:
 
     def get_bb(self):
         return self.location[0]-self.size[0]//2,self.location[1]-self.size[1]//2,self.location[0]+self.size[0]//2,self.location[1]+self.size[1]//2
-    
+
     def update(self):
         if self.player!=None and not game_world.collide(self,self.player):
             self.player=None
         if self.baseman!=None and not game_world.collide(self,self.baseman):
+            self.baseman.base=-1
             self.baseman=None
-        if self.baseman!=None and self.baseman.ball_picked:
-            print()
-            for runner in play_mode.control.runners:
-                if runner.target_base==self.num and self.player!=runner:
-                    print('you out')
-                    runner.stop()
-                    play_mode.control.out_list.append(runner)
-                    play_mode.control.runners.remove(runner)
         
-
     def handle_collision(self,group,other):
         if group=='base:player' and self.player!=other:
             print('in base')
@@ -41,13 +33,23 @@ class Base_p:
             if self.num==3:
                 other.check=True
             elif self.num==0 and other.check:
+                play_mode.control.runners.remove(other)
                 game_world.remove_object(other)
-                play_mode.control.score+=1
-                
-        elif group=='base:fielder' and self.baseman!=other:
-            print('in base')
-            self.baseman=other
+                play_mode.control.score+=1 
+        elif group=='base:defender' and self.baseman!=other:
+                self.baseman=other
 
+    def delete_not_in_base(self):
+        print('active')
+        if self.baseman!=None and self.baseman.ball_picked:
+            runners=play_mode.control.runners
+            for runner in runners:
+                print('you')
+                if runner.target_base==self.num and self.player!=runner:
+                    print('you out')
+                    runner.stop()
+                    play_mode.control.out_list.append(runner)
+                    play_mode.control.runners.remove(runner)
 class Base:
     def __init__(self):
         self.base_locations={'base0':[400,76],'base1':[558,232],'base2':[400,392+12],'base3':[242,232]}
@@ -79,3 +81,6 @@ class Base:
             base.location=self.base_locations['base'+str(self.bases.index(base))]
             base.update()
         
+    def delete_not_in_base(self):
+        for base in self.bases:
+            base.delete_not_in_base()

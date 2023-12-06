@@ -115,8 +115,6 @@ class Ball:
         self.state_point,self.times_when_ball_on_ground,self.distances_when_ball_on_ground,self.locations_when_ball_on_ground=[],[],[],[]
         self.state_machine.start()
         game_world.add_collision_pair('ball:defender',self,None)
-        game_world.add_collision_pair('ball:baseman',self,None)
-        game_world.add_collision_pair('ball:the_catcher',self,None)
         game_world.add_collision_pair('ball:bat',self,None)
         play_mode.control.ball=self
         if play_mode.control.state_machine.cur_state==play_mode.control.state_list['Catch']:
@@ -170,7 +168,8 @@ class Ball:
 
     def set_z_velocity(self):
         if self.h<0:
-            print('ground')
+            if not play_mode.control.is_ground:
+                print('ground')
             play_mode.control.is_ground=True
             self.h=0
             self.h_v*=-0.5 if (abs(self.h_v/self.h_a)<abs(self.v/self.a))else 0

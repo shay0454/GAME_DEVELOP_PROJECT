@@ -1,5 +1,4 @@
 import time
-import pico2d
 stack=[]
 def change_mode(mode):
     global stack
