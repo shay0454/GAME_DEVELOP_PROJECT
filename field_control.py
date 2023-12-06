@@ -1,6 +1,7 @@
 import pico2d
+import copy
 import game_world
-from player import *
+from defensive import *
 from offensive import *
 from base import *
 from field_control_function import *
@@ -9,17 +10,29 @@ from ball_location_test import *
 def is_all_arrive(control):
     for object_list in control.players:
         for player in object_list:
-            if not is_arrive(player,('CHECK',0)):
+            if not is_arrive_(player,('CHECK',0)):
                 return False
     return True
 
+def is_objects_arrive(objects):
+    for player in objects:
+        if not is_arrive_(player,('CHECK',0)):
+            return False
+    return True
+
+def delete_player(control,player):
+    for object_list in control.players:
+        if player in object_list:
+            object_list.remove(player)
 class Ready:
     @staticmethod
     def enter(control):
-        control.base_locations=[base.location for base in control.base.bases]                    # base_locations
-        control.batter_init()
+        control.runners_stop()
+        if len(control.batter)==0:
+            control.create_batter()
+        control.recheck_variable()       
+        control.defenders_init()
         players_destination_init(control)
-
 
     @staticmethod
     def exit(control):
@@ -41,31 +54,35 @@ class Start:
 
     @staticmethod
     def do(control):
-        pass
+        if control.basemen[0].ball_picked:
+            control.state_machine.change_state(End)
+        elif control.ball!=None and control.is_hit:
+            control.batter[0].state_machine.change_state(control.player_state_list['Idle'])
+            control.state_machine.change_state(Hitted)
 
 class Hitted:
     @staticmethod
     def enter(control):
         print('control_hit')
-        batter_run(control)
-        game_world.add_collision_pair('ball:defender',None,control.picker[0])
-        control.fielder_goto_ball_allow()
-        pass
+        control.draw_ball_on_ground()
+        control.do_field_active_hit()
 
     @staticmethod
     def exit(control):
+        control.delete_point_ball_on_ground()
         pass
 
     @staticmethod
     def do(control):
-        control.base.runners_run()
-        control.draw_ball_on_ground()
+        control.check_is_foul()
+        control.check_frist_catch()
         pass
 
 class Catch:
     @staticmethod
     def enter(control):
         defender_stop(control)
+        control.check_hitted_ball_out()
         pass
 
     @staticmethod
@@ -74,6 +91,7 @@ class Catch:
 
     @staticmethod
     def do(control):
+        control.check_player_collision()
         pass
 
 class End:
@@ -81,18 +99,18 @@ class End:
     def enter(control):
         print('game end')
         control.time=get_time()
-        for out in control.out_list:
-            game_world.remove_object(out)
-            control.out+=1
         pass
 
     @staticmethod
     def exit(control):
-        pass
+        control.check_strike_or_foul()
+        control.check_strike_over()
+        control.check_out()
+        control.reset_game()
 
     @staticmethod
     def do(control):
-        if get_time()-control.time>3:
+        if get_time()-control.time>1:
             control.state_machine.change_state(Ready)
         pass
 
@@ -134,21 +152,24 @@ class Field_statement:
 class Field_control:
             
     def __init__(self):
-        self.strike,self.out=0,0      
+        self.strike,self.out,self.score=0,0,0    
+        self.font=load_font('ENCR10B.TTF',15)
         self.state_machine=Field_statement(self)
         self.base=Base()
         self.base_locations=[base.location for base in self.base.bases]                    # base_locations
         self.fielder_locations=[[250,440],[400,530],[550,440]]                             
-        self.catcher_location,self.picker_location,self.batter_location=[400,30],[400,230],[400-25,70]
-        self.allow_catch_list=[]
+        self.catcher_location,self.picker_location,self.batter_location=[400,20],[400,230],[400-25,70]
         self.ball=None
-        self.tf_hit=False
+        self.is_ground,self.is_hit,self.is_foul=False,False,False
+        self.is_strike,self.ball_picked=False,False
+        self.location_player_with_ball=[]
         self.batter,self.picker,self.runners,self.fielders,self.basemen=[],[],[],[],[]
         self.players=[self.batter,self.runners,self.picker,self.basemen,self.fielders]            # players
+        self.point_draw,self.expect_ball_location,expect_ball_time=[],[],[]
         self.out_list=[]
-        self.state_list={'Ready':Ready,'Start':Start,'Hitted':Hitted,'Catch':Catch}
-        self.player_state_list={'Idle':Idle,'Run':Run,'Shoot':Shoot,'Hit':Hit,'The_Catcher':The_Catcher}
-        self.defenders_init()
+        self.state_list={'Ready':Ready,'Start':Start,'Hitted':Hitted,'Catch':Catch,'End':End}
+        self.player_state_list={'Idle':Idle,'Run':Run,'Shoot':Shoot,'Hit':Hit,'Hitting':Hitting,'The_Catcher':The_Catcher}
+        self.create_defenders()
         self.state_machine.cur_state.enter(self)  
                   
     def update(self):
@@ -156,9 +177,10 @@ class Field_control:
         self.base.update()
     
     def draw(self):
-        self.base.draw()
-        if self.state_machine.cur_state==Hitted:
-            self.draw_ball_on_ground()
+        self.font.draw(100,120,f'strike : {self.strike}',(256,256,256))
+        self.font.draw(100,100,f'   out : {self.out}',(256,256,256))
+        self.font.draw(100,80,f' score : {self.score}',(256,256,256))
+        pass
 
     def handle_events(self,event):
         if event.type==SDL_KEYDOWN and event.key==SDLK_SPACE:
@@ -176,31 +198,50 @@ class Field_control:
     def Skip_Ready(self):
         players_location_init(self)
 
-    def fielders_init(self):                                                                 # fielder 객체들 초기화용
-        for i in range(4):
+    def create_fielders(self):                                                                 # fielder 객체들 초기화용
+        for i in range(3):
             player=Player('fielder')
             self.fielders.append(player)
-            game_world.add_collision_pair('ball:defender',None,player)
         game_world.add_objects(self.fielders,2)
         
-
-    def basemen_init(self):                                                                 # fielder 객체들 초기화용
-        for i in range(4):
-            player=Player()
+    def create_basemen(self): 
+        player=Player('The_Catcher')           
+        self.basemen.append(player)                                                     # fielder 객체들 초기화용
+        for i in range(1,4):
+            player=Player('baseman')
             self.basemen.append(player)
-            game_world.add_collision_pair('ball:baseman',None,player)
-            game_world.add_collision_pair('base:baseman',None,player)
         game_world.add_objects(self.basemen,2)
 
-    def picker_init(self):
+    def create_picker(self):
         picker=Player('picker')
         self.picker.append(picker)
         game_world.add_objects(self.picker,2)
 
-    def batter_init(self):
+    def create_batter(self):
         batter=Batter()
         self.batter.append(batter)
         game_world.add_objects(self.batter,2)
+
+    def fielders_init(self):
+        for player in self.fielders:
+            player.ball_picked,player.already_shoot=False,False
+            game_world.add_collision_pair('ball:defender',None,player)
+            game_world.add_collision_pair('base:defender',None,player)
+
+    def basemen_init(self):
+        for player in self.basemen:
+            player.ball_picked,player.already_shoot=False,False
+            game_world.add_collision_pair('ball:defender',None,player)
+            game_world.add_collision_pair('base:defender',None,player)
+
+    def picker_init(self):
+        self.picker[0].ball_picked,self.picker[0].already_shoot=False,False
+        pass
+
+    def create_defenders(self):
+        self.create_fielders()
+        self.create_basemen()
+        self.create_picker()
 
     def defenders_init(self):
         self.fielders_init()
@@ -208,26 +249,136 @@ class Field_control:
         self.picker_init()
 
     def draw_ball_on_ground(self):
+        if self.ball==None:
+            return
+        self.expect_ball_location=[]
         for location in self.ball.locations_when_ball_on_ground:
-            game_world.add_object(Ball_ground_location(*location),1)
+            point=Ball_ground_location(*location)
+            self.point_draw.append(point)
+            self.expect_ball_location.append([point.x,point.y])
+            game_world.add_object(point,1)
+        self.expect_ball_time=[*self.ball.times_when_ball_on_ground]
 
-    def fielder_check_point(self,fielder):
-        for i in range(len(self.ball.locations_when_ball_on_ground)-1):
-            if distance_less_than(self.ball.locations_when_ball_on_ground[i][0]-fielder.location[0],self.ball.locations_when_ball_on_ground[i][1]-fielder.location[1],self.ball.times_when_ball_on_ground[i]*fielder.RUN_SPEED_PPS):
-                fielder.goto(self.ball.locations_when_ball_on_ground[i])
+    def delete_point_ball_on_ground(self):
+        for point in self.point_draw:
+            game_world.remove_object(point)
+        self.point_draw=[]
+
+    def go_to_ball_point(self,fielder):
+        for i in range(len(self.expect_ball_location)):
+            location=[*self.expect_ball_location[i]]
+            if distance_less_than(location[0]-fielder.location[0],location[1]-fielder.location[1],self.expect_ball_time[i]*fielder.RUN_SPEED_PPS):
+                fielder.goto(location)
                 return
-        fielder.goto(self.ball.locations_when_ball_on_ground[len(self.ball.locations_when_ball_on_ground)-1])
+        fielder.goto(self.expect_ball_location[len(self.expect_ball_location)-1])
 
-    def fielder_goto_ball_allow(self):
+    def go_to_ball_point_defend(self):
             for fielder in self.fielders:
-                self.fielder_check_point(fielder)
+                self.go_to_ball_point(fielder)
+            self.go_to_ball_point(self.picker[0])
         
     def find_base(self):
         for runner in self.runners:
             if not self.base.is_player_in_base(runner):
-                return runner.target_base
-        self.state_machine.change_state(End)
-        return -1
+                if not(runner in self.out_list):
+                    return runner.target_base
+        return -1        
+    
+    def runners_back_run(self):
+        for runner in self.runners:
+            runner.target_base=(runner.target_base-1)
+            if runner.target_base>0:
+                runner.goto(self.base_locations[runner.target_base])
+
+    def batter_run(self):
+        self.runners.append(self.batter[0])
+        self.batter[0].goto([560,230])
+
+    def runners_stop(self):
+        for runner in self.runners:
+            runner.stop()
+
+    def player_stop(self,player):
+        for objs in self.players:
+            if player in objs:
+                player.stop()
+    
+    def check_frist_catch(self):
+        for player in self.fielders:
+            if player.ball_picked:
+                self.state_machine.change_state(Catch)
+        for player in self.basemen:
+            if player.ball_picked:
+                self.state_machine.change_state(Catch)
+
+    def do_field_active_hit(self):
+        location=self.ball.locations_when_ball_on_ground[len(self.ball.locations_when_ball_on_ground)-1]
+        self.angle=math.atan2(location[1]-20,location[0]-400)
+        if self.angle>PI/4 and self.angle<PI*3/4:
+            self.batter_run()
+            self.basemen[0].goto(self.base_locations[0])
+            game_world.add_collision_pair('ball:defender',None,self.picker[0])
+
+    def recheck_variable(self):
+        self.base_locations=[[*base.location] for base in self.base.bases]                    
+        self.players=[self.batter,self.runners,self.picker,self.basemen,self.fielders]         
+
+    def check_is_foul(self):
+        if self.angle>PI/4 and self.angle<PI*3/4:
+            self.base.runners_run()
+            self.go_to_ball_point_defend()
+        else:
+            self.is_foul=True
+            self.state_machine.change_state(End)
+            
+    def check_hitted_ball_out(self):
+        if not self.is_ground:
+            do_out_batter(self)
+            self.runners_back_run()
+
+    def check_strike_or_foul(self):
+        if self.is_strike:
+            self.strike+=1
+        elif self.is_foul:
+            game_world.remove_object(self.ball)
+            self.ball=None
+            self.strike+=1
+        else:
+            for location_obj in self.expect_ball_location:
+                game_world.remove_object(location_obj)
+            self.expect_ball_location,self.expect_ball_time=[],[]
+        if not(self.is_strike or self.is_foul):
+            self.batter=[]
+
+    def check_strike_over(self):
+        if self.strike==3:
+            self.strike=0
+            do_out_batter(self)
+
+    def check_out(self):
+        print('---------------')
+        for out in self.out_list:
+            self.strike=0
+            print(out)
+            delete_player(self,out)
+            game_world.remove_object(out)
+            self.out+=1
+        self.out_list.clear()
+
+    def reset_game(self):
+        self.picker[0].state_machine.change_state(self.player_state_list['Idle'],('CHANGE',0))
+        game_world.remove_collision_object(self.picker[0])
+        self.is_strike,self.is_foul,self.is_hit,self.is_ground=False,False,False,False
+        for player in self.runners:
+            player.base_dir=1
+
+    def check_player_collision(self):
+        if self.ball_picked:
+            for player in self.fielders:
+                if distance_less_than(player.location[0]-self.location_player_with_ball[0],player.location[1]-self.location_player_with_ball[1],24):
+                    game_world.remove_collision_object(player)
+                else:
+                    game_world.add_collision_pair('ball:defender',None,player)
 
 def distance_less_than(x,y,r):
     return True if x*x+y*y<r*r else False

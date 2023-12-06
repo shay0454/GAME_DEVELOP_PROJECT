@@ -11,12 +11,13 @@ def is_less_than_ball(player,b_location,gap):
 
 def check_near_in_ball(player):
     if play_mode.control.ball!=None:
-        if is_less_than_ball(player,play_mode.control.ball.location,9*PIXEL_PER_METER):
+        if is_less_than_ball(player,play_mode.control.ball.location,30):
+            player.goto(play_mode.control.ball.location)
+        if is_less_than_ball(player,play_mode.control.ball.location,90) and play_mode.control.is_ground:
             player.goto(play_mode.control.ball.location)
     else:
         player.stop()
     
-
 def lower_than_player(player,height):
     return player.size[1]>height
 
@@ -24,7 +25,7 @@ def do_out_batter(control):
     control.out_list.append(control.batter[0])
     if control.batter[0] in control.runners:
         control.runners.remove(control.batter[0])
-    control.player_stop(control.batter[0])
+    control.batter[0].stop()
 
 def set_field_control_Catch(control):
     if control.state_machine.cur_state==control.state_list['Hitted']:
@@ -46,13 +47,11 @@ is_check=False
 class Catch:
     @staticmethod
     def enter(player,e):
-        player.get_bt()
         player.catch_time=get_time()
         play_mode.control.ball_picked=True
         play_mode.control.location_player_with_ball=player.location
         player.stop()
-        if not play_mode.control.is_ground:
-            play_mode.control.out_list+=[*play_mode.control.batter]
+        player.get_bt()
         player.frame=0
     
     @staticmethod
@@ -237,7 +236,7 @@ class Player:
         self.sprite_option=['',1]                   # 'h': 왼쪽, '': 오른쪽,  -1 : 다운, 1 : 업
         self.destination=[self.location[0],self.location[1]]            # 도착지점
         self.size=[24,32]                           # player draw 사이즈
-        self.base=0
+        self.base=-1
         self.base_dir=1
         self.already_shoot=False
         self.ball_picked=False
@@ -256,7 +255,7 @@ class Player:
         self.state_machine.handle_event(('INPUT',event))
 
     # 업데이트
-    def update(self):                                       
+    def update(self):    
         self.state_machine.update()                         # cur_state.do
         self.bt.run()
 
@@ -280,6 +279,11 @@ class Player:
                 set_player_catch_the_ball(self)
                 if self.role=='The_Catcher':
                     play_mode.control.is_strike=True
+        if group=='base:defender':
+            if self.role=='baseman' or self.role=='the_catcher':
+                self.base=other.num
+                if self.ball_picked:
+                    other.delete_not_in_base()
 
 
                 
@@ -354,14 +358,18 @@ class Player:
 
 #베이스 찾기
     def find_base(self):
+        print('find')
         self.base_for_shoot=play_mode.control.find_base()
         print(self.base_for_shoot)
-        return BehaviorTree.SUCCESS
-    
-    def check_base(self):
         if self.base_for_shoot==-1:
             self.state_machine.change_state(Idle,('CHANGE',0))
             play_mode.control.state_machine.change_state(play_mode.control.state_list['End'])
+            return BehaviorTree.FAIL
+        else:
+            return BehaviorTree.SUCCESS
+    
+    def check_base(self):
+        if self.base==self.base_for_shoot:
             return BehaviorTree.FAIL
         else:
             return BehaviorTree.SUCCESS
@@ -370,9 +378,7 @@ class Player:
     def set_angle_base_for_shoot(self):
         self.time=get_time()
         self.point_location=play_mode.control.base_locations[self.base_for_shoot]
-        self.point_location[1]+=12
         self.shoot_angle=math.atan2(self.point_location[1]-self.location[1],self.point_location[0]-self.location[0])
-        self.base_distance=math.sqrt((self.point_location[1]-self.location[1])**2+(self.point_location[0]-self.location[0])**2)
         return BehaviorTree.SUCCESS
 
     def set_v_to_base(self):
